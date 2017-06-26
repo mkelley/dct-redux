@@ -69,7 +69,7 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
 1. Add moving target WCS (WCS key "m"):
    ```bash
    for d in c2013a1 c2013x1 c2014s2 c2015v2 churyumov-gerasimenko clark finlay giacobini-zinner linear12 tempel1; do
-     (cd $d; ../../../../add-moving-wcs.py */*fits)
+     (cd $d; dct-add-moving-wcs.py */*fits)
    done
    ```
 
