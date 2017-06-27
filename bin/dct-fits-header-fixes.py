@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 from glob import glob
 import os
 from astropy.io import fits, ascii
