@@ -16,8 +16,9 @@ aster_pat = ('^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)'
              '|(\(([1-9][0-9]*)\)))')
 
 parser = argparse.ArgumentParser(description='Update LMI WCS using already centered targets.')
-parser.add_argument('file', nargs='*', help='FITS images to update.')
+parser.add_argument('file', nargs='+', help='FITS images to update.')
 parser.add_argument('--celestial', default=None, help='The aligned object is a celestial source with this "RA,Dec".  Celestial coordinates can be in any format usable by astropy.Angle (include units).')
+parser.add_argument('--observatory', default='G37', help='Observatory location (for HORIZONS).')
 
 args = parser.parse_args()
 saved_coords = {}
@@ -55,9 +56,9 @@ for f in args.file:
         else:
             # comet or asteroid
             q = callhorizons.query(obj)
-            d = mskpy.date2time(hdu[0].header['DATE'])
+            d = mskpy.date2time(hdu[0].header['DATE-OBS'])
             q.set_discreteepochs([d.jd])
-            q.get_ephemerides('G37')
+            q.get_ephemerides(args.observatory)
             c = SkyCoord(q['RA'][0], q['DEC'][0], unit=u.deg)
     else:
         ra, dec = [Angle(a) for a in args.celestial.split(',')]
