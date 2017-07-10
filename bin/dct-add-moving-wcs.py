@@ -29,7 +29,7 @@ dates = []
 for f in files:
     hdu = fits.open(f, mode='readonly')
     objects.append(hdu[0].header['OBJECT'])
-    dates.append(hdu[0].header['DATE'])
+    dates.append(hdu[0].header['DATE-OBS'])
 
 obj = np.unique(objects)
 assert len(obj) == 1, "Multiple objects found: {}".format(obj)
