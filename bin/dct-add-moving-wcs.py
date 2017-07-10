@@ -17,7 +17,8 @@ aster_pat = ('^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)'
              '|(\(([1-9][0-9]*)\)))')
 
 parser = argparse.ArgumentParser(description='Add a WCS centered on a moving target.')
-parser.add_argument('file', nargs='*', help='FITS images to update.')
+parser.add_argument('file', nargs='+', help='FITS images to update.')
+parser.add_argument('--observatory', default='G37', help='Observatory location (for HORIZONS).')
 
 args = parser.parse_args()
 files = sorted(args.file)
@@ -44,7 +45,7 @@ print(obj)
 for i in range(len(t)):
     q = callhorizons.query(target)
     q.set_discreteepochs(t.jd[i])
-    assert q.get_ephemerides('G37') == 1, 'Error getting ephemerides.'
+    assert q.get_ephemerides(args.observatory) == 1, 'Error getting ephemerides.'
     _c = SkyCoord(q['RA'], q['DEC'], unit=u.deg)
     print('  ', t[i].iso, _c.to_string('hmsdms')[0])
     if c is None:
