@@ -40,7 +40,7 @@ m = re.findall(comet_pat, obj) + re.findall(aster_pat, obj)
 assert len(m) != 0, 'Designation is not that of a comet or asteroid: {}'.format(obj)
 target = m[0][0]
 
-c = None
+c = []
 print(obj)
 for i in range(len(t)):
     q = callhorizons.query(target)
@@ -48,11 +48,9 @@ for i in range(len(t)):
     assert q.get_ephemerides(args.observatory) == 1, 'Error getting ephemerides.'
     _c = SkyCoord(q['RA'], q['DEC'], unit=u.deg)
     print('  ', t[i].iso, _c.to_string('hmsdms')[0])
-    if c is None:
-        c = _c
-    else:
-        c = coords.concatenate((c, _c))
+    c.append(_c)
 
+c = coords.concatenate(c)
 i = t.argmin()
 for j, f in enumerate(files):
     hdu = fits.open(f, mode='readonly')
