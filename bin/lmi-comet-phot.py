@@ -6,6 +6,7 @@ import logging
 import argparse
 from datetime import datetime
 import numpy as np
+import scipy.ndimage as nd
 import astropy.units as u
 from astropy.io import fits, ascii
 from astropy.table import Table, hstack
@@ -51,6 +52,7 @@ parser.add_argument('files', nargs='+', help='Input data.')
 parser.add_argument('--config', default='comet-phot.config', help='Configuration file.')
 parser.add_argument('-o', default='comet-phot.txt', help='Output file.')
 parser.add_argument('--append', action='store_true', help='Append to output file.')
+parser.add_argument('--no-fixpix', action='store_false', dest='fixpix', help='Do not replace NaNs with nearby median.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite output file, if it exists.')
 args = parser.parse_args()
 
@@ -159,6 +161,13 @@ for f in args.files:
     bgsig = hdu[0].header['bgsig']
     mosaic = hdu[0].header.get('MOSAIC', '')
 
+    im = np.ma.MaskedArray(hdu[0].data)
+    im.mask = ~np.isfinite(im)
+    if args.fixpix and np.any(im.mask):
+        m = nd.median_filter(im, 11)
+        im[im.mask] = m
+        im.mask = False
+    
     area, flux = apphot(hdu[0].data, cyx, p['rap'], subsample=2)
     if area.ndim == 0:
         area = area.reshape((1,))

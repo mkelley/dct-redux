@@ -10,6 +10,9 @@ import montage_wrapper as montage
 parser = argparse.ArgumentParser(description='Stack comet images together.')
 parser.add_argument('file', nargs='+', help='Files to stack by filter.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite previously saved files.')
+parser.add_argument('--mask', default='_mask', help='File name suffix for object masks.')
+parser.add_argument('--bgmatch', action='store_true', help='Enable background matching.')
+parser.add_argument('--no-cleanup', action='store_false', dest='cleanup', help='Disable montage_wrapper cache cleanup.')
 
 args = parser.parse_args()
 
@@ -31,7 +34,16 @@ for filt, ff in files.items():
         os.system('mkdir -p /tmp/lmi-stack-comets/input')
 
     for f in ff:
-        os.system('cp {} /tmp/lmi-stack-comets/input'.format(f))
+        #os.system('cp {} /tmp/lmi-stack-comets/input'.format(f))
+        cf = '/tmp/lmi-stack-comets/input/' + f.split('/')[-1]
+        mf = f.replace('.fits', '{}.fits'.format(args.mask))
+        with fits.open(f, mode='readonly') as hdu:
+            if os.path.exists(mf):
+                print('  Masking {}'.format(f))
+                mask = fits.getdata(mf) == 1
+                hdu[0].data[mask] = np.nan
+
+            hdu.writeto(cf, overwrite=True)
 
     copied = sorted(glob('/tmp/lmi-stack-comets/input/*fits'))
     exptime = 0
@@ -61,8 +73,10 @@ for filt, ff in files.items():
 
         montage.mosaic('/tmp/lmi-stack-comets/input',
                        '/tmp/lmi-stack-comets/output',
-                       '/tmp/lmi-stack-comets/input/header',
-                       combine=combine, bitpix=-32)
+                       header='/tmp/lmi-stack-comets/input/header',
+                       combine=combine, bitpix=-32,
+                       background_match=args.bgmatch,
+                       cleanup=args.cleanup)
 
         os.system('cp /tmp/lmi-stack-comets/output/mosaic.fits {}.fits'.format(outf))
         os.system('cp /tmp/lmi-stack-comets/output/mosaic_area.fits {}_cov.fits'.format(outf))
