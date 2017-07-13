@@ -44,7 +44,8 @@ files_edited = 0
 for row in ascii.read(args.fixesfile):
     for i in range(row['first frame'], row['last frame'] + 1):
         file_tests = ['lmi.{:04d}.fits'.format(i),
-                      'lmi_????????_{:04d}_raw.fits'.format(i)]
+                      'lmi_????????_{:04d}_raw.fits'.format(i),
+                      'lmi_????????_{:04d}_ppp.fits'.format(i)]
         for fn in file_tests:
             try:
                 fn = glob(fn)[0]
