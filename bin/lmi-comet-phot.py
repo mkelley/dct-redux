@@ -165,7 +165,7 @@ for f in args.files:
     im.mask = ~np.isfinite(im)
     if args.fixpix and np.any(im.mask):
         m = nd.median_filter(im, 11)
-        im[im.mask] = m
+        im[im.mask] = m[im.mask]
         im.mask = False
     
     area, flux = apphot(hdu[0].data, cyx, p['rap'], subsample=2)
