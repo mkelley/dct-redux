@@ -41,7 +41,7 @@ class IntListAction(argparse.Action):
 parser = argparse.ArgumentParser(description='Generate partially processed LMI data.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('file_list', help='A list of files to process.  They must all have file names of the form: lmi_YYYYMMDD_NNNN_raw.fits.  Blank lines and lines beginning with # are ignored.')
 parser.add_argument('--target', default='ppp', help='Save processed files to this target directory.')
-parser.add_argument('--flat-key', default='SKY FLAT', help='Object type for flat fields.')
+parser.add_argument('--flat-keys', default='SKY FLAT,DOME FLAT', type=lambda s: s.split(','), help='Object type for flat fields, may be a comma-separated list.')
 parser.add_argument('--no-lacosmic', dest='lacosmic', action='store_false', help='Do not run L.A.Cosmic.')
 parser.add_argument('--reprocess-data', action='store_true', help='Reprocess data files.')
 parser.add_argument('--reprocess-all', action='store_true', help='Recreate bias, flat, and all data files.')
@@ -113,12 +113,14 @@ keywords = ['obserno', 'object', 'obstype', 'date-obs', 'subarser',
 ic = ImageFileCollection(location=location, filenames=files,
                          keywords=keywords)
 nbias = len(ic.files_filtered(obstype='BIAS'))
-nflat = len(ic.files_filtered(obstype=args.flat_key))
+nflat = 0
+for k in args.flat_keys:
+    nflat += len(ic.files_filtered(obstype=k))
 ndata = len(ic.files_filtered(obstype='OBJECT'))
 
 filters = []
 for h in ic.headers():
-    if h['OBSTYPE'] == 'OBJECT' or h['OBSTYPE'] == args.flat_key:
+    if h['OBSTYPE'] == 'OBJECT' or h['OBSTYPE'] in args.flat_keys:
         if h['FILTERS'] not in filters:
             filters.append(h['FILTERS'])
 
@@ -127,8 +129,9 @@ filters.sort()
 flat_breakdown = []
 data_breakdown = []
 for filt in filters:
-    flat_breakdown.append('{} {}'.format(
-        len(ic.files_filtered(obstype=args.flat_key, filters=filt)), filt))
+    for k in args.flat_keys:
+        flat_breakdown.append('{} {} {}'.format(
+            len(ic.files_filtered(obstype=k, filters=filt)), filt, k))
     data_breakdown.append('{} {}'.format(
         len(ic.files_filtered(obstype='OBJECT', filters=filt)), filt))
 
@@ -142,7 +145,7 @@ for i in subframes:
 logger.info('''
   {} files:
     {} bias
-    {} sky flat
+    {} flats
       {}
     {} object
       {}
@@ -206,28 +209,34 @@ ic.refresh()
 flats = dict()
 logger.info('Flat fields.')
 for filt in filters:
-    fn = '{}/flat-{}.fits'.format(ic.location, filt)
-    if os.path.exists(fn) and not args.reprocess_all:
-        logger.info('  Reading {}.'.format(fn))
-        flats[filt] = CCDData.read(fn)
-    elif nflat == 0:
-        logger.warning('No sky flat files provided and {} not found.  Not flat field correcting {} data.'.format(fn, filt))
-        flats[filt] = 1
-    else:
-        logger.info('  Generating {}.'.format(fn))
+    flats[filt] = 1
+    for flat_key in args.flat_keys:
+        fn = '{}/{}-{}.fits'.format(ic.location,
+                                    flat_key.lower().replace(' ', ''),
+                                    filt)
+        if os.path.exists(fn) and not args.reprocess_all:
+            logger.info('  Reading {}.'.format(fn))
+            flats[filt] = CCDData.read(fn)
+        elif len(ic.files_filtered(obstype=flat_key, filters=filt)) == 0:
+            logger.warning('No {} files provided for {} and {} not found.'.format(flat_key, filt, fn))
+        else:
+            logger.info('  Generating {}.'.format(fn))
+            files = ic.files_filtered(obstype=flat_key, filters=filt,
+                                      subarser=0)
+            files = [os.sep.join([ic.location, f]) for f in files]
+            flat = combine(files, method='median', scale=mode_scaler)
 
-        files = ic.files_filtered(obstype=args.flat_key, filters=filt,
-                                  subarser=0)
-        files = [os.sep.join([ic.location, f]) for f in files]
-        flats[filt] = combine(files, method='median', scale=mode_scaler)
+            flat.mask = (flat.data > 1.2) + (flat.data < 0.8)
 
-        flats[filt].mask = (flats[filt].data > 1.2) + (flats[filt].data < 0.8)
+            n = str([int(f.split('_')[2]) for f in files])
+            flat.meta.add_history('Created from file numbers: {}'.format(n))
+            flat.meta['FILENAME'] = os.path.split(fn)[1]
 
-        n = str([int(f.split('_')[2]) for f in files])
-        flats[filt].meta.add_history('Created from file numbers: {}'.format(n))
-        flats[filt].meta['FILENAME'] = os.path.split(fn)[1]
+            flat.write(fn, overwrite=True)
 
-        flats[filt].write(fn, overwrite=True)
+            if flats[filt] == 1:
+                logger.info('    Using {} for {}'.format(flat_key, filt))
+                flats[filt] = flat
 
 ic.refresh()
 i = (ic.summary['obstype'] != 'BIAS') & ic.summary['flatcor'].mask & ~ic.summary['subbias'].mask
