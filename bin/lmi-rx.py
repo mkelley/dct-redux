@@ -206,59 +206,56 @@ ic.refresh()
 
 ######################################################################
 # flat field and correction
-
 def style2key(style):
     """Generate a flat field key based on FITS keywords.
 
     filter
-    domeflat / skyflat
     Binning key: 2x2 for 2x2 binning
     NIHTS dichroic key: +D for dichroic in.
 
     """
 
-    k = h['OBSTYPE'].lower().strip().replace(' ', '')
-    
-    k += h['CCDSUM'].strip().replace(' ', 'x')
-    
-    if h['FMDSTAT'] == 'EXTENDED':
-        k += '+D'
+    k = '{}-{}{}D'.format(
+        style['filters'],
+        style['CCDSUM'].strip().replace(' ', 'x'),
+        '+' if style['FMDSTAT'] == 'EXTENDED' else '-'
+    )
 
     return k
 
 def needed_flat_styles(ic):
     """Generate a list of needed flats for this data set.
 
-    Requires FILTERS, OBSTYPE, CCDSUM, and FMDSTAT in the image
-    collection summary.
+    Requires FILTERS, CCDSUM, and FMDSTAT in the image collection
+    summary.
 
     """
-
     data_styles = []
     for obs in ic.summary:
-        style = (obs['filters'], obs['obstype'], obs['ccdsum'], obs['fmdstat'])
+        style = (obs['filters'], obs['ccdsum'], obs['fmdstat'])
         if style not in data_styles:
             data_style.append(combo)
-            yield style
+            yield {'filters': style[0],
+                   'ccdsum': style[1],
+                   'fmdstat': style[2]}
 
 logger.info('Flat fields.')
 for style in needed_flat_styles(ic):
-    
-for filt in filters:
-    flats[filt] = 1
+    k = style2key(style)
+    flats[k] = 1
     for flat_key in args.flat_keys:
         fn = '{}/{}-{}.fits'.format(ic.location,
                                     flat_key.lower().replace(' ', ''),
-                                    filt)
+                                    style2key(style))
+
         if os.path.exists(fn) and not args.reprocess_all:
             logger.info('  Reading {}.'.format(fn))
-            flats[filt] = CCDData.read(fn)
-        elif len(ic.files_filtered(obstype=flat_key, filters=filt)) == 0:
+            flats[k] = CCDData.read(fn)
+        elif len(ic.files_filtered(obstype=flat_key, **style)) == 0:
             logger.warning('No {} files provided for {} and {} not found.'.format(flat_key, filt, fn))
         else:
             logger.info('  Generating {}.'.format(fn))
-            files = ic.files_filtered(obstype=flat_key, filters=filt,
-                                      subarser=0)
+            files = ic.files_filtered(obstype=flat_key, subarser=0, **style)
             files = [os.sep.join([ic.location, f]) for f in files]
             flat = combine(files, method='median', scale=mode_scaler)
 
@@ -270,9 +267,9 @@ for filt in filters:
 
             flat.write(fn, overwrite=True)
 
-            if flats[filt] == 1:
-                logger.info('    Using {} for {}'.format(flat_key, filt))
-                flats[filt] = flat
+            if flats[k] == 1:
+                logger.info('    Using {} for {}'.format(flat_key, k))
+                flats[k] = flat
 
 ic.refresh()
 i = (ic.summary['obstype'] != 'BIAS') & ic.summary['flatcor'].mask & ~ic.summary['subbias'].mask
@@ -280,9 +277,9 @@ logger.info('  {} files to flat correct.'.format(sum(i)))
 for fn in ic.summary['file'][i]:
     ccd = ccdproc.fits_ccddata_reader(os.sep.join([ic.location, fn]))
 
-    filt = ccd.meta['FILTERS']
-    if flats[filt] == 1:
-        logger.info('{} skipped (no {} flat field provided).'.format(fn, filt))
+    flatkey = style2key(ccd.meta)
+    if flats[flatkey] == 1:
+        logger.info('{} skipped, no {} flatfield provided.'.format(fn, flatkey))
         continue
 
     logger.debug(fn)
@@ -294,7 +291,7 @@ for fn in ic.summary['file'][i]:
         s = subarray_slice(ccd.meta['SUBARR{:02}'.format(subframe)],
                            ccd.meta['CCDSUM'])
         t = subarray_slice(ccd.meta['TRIMSEC'], '1 1')  # flat was not trimmed
-    ccd = ccdproc.flat_correct(ccd, flats[filt][s][t])
+    ccd = ccdproc.flat_correct(ccd, flats[flatkey][s][t])
     
     if args.lacosmic:
         cleaned = ccdproc.cosmicray_lacosmic(
@@ -306,6 +303,6 @@ for fn in ic.summary['file'][i]:
     else:
         ccd.header['LACOSMIC'] = 0, 'L.A.Cosmic processing flag.'
 
-    ccd.meta['FLATFILE'] = (flats[filt].meta['FILENAME'],
+    ccd.meta['FLATFILE'] = (flats[flatkey].meta['FILENAME'],
                             'Name of the flat field correction used.')
     ccd.write(os.sep.join([ic.location, fn]), overwrite=True)
