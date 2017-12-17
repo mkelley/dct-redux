@@ -216,7 +216,7 @@ def style2key(style):
     """
 
     k = '{}-{}{}D'.format(
-        style['filters'],
+        style['FILTERS'],
         style['CCDSUM'].strip().replace(' ', 'x'),
         '+' if style['FMDSTAT'] == 'EXTENDED' else '-'
     )
@@ -232,14 +232,18 @@ def needed_flat_styles(ic):
     """
     data_styles = []
     for obs in ic.summary:
+        if obs['filters'] == 'DARK':
+            continue
+        
         style = (obs['filters'], obs['ccdsum'], obs['fmdstat'])
         if style not in data_styles:
-            data_style.append(combo)
-            yield {'filters': style[0],
-                   'ccdsum': style[1],
-                   'fmdstat': style[2]}
+            data_styles.append(style)
+            yield {'FILTERS': style[0],
+                   'CCDSUM': style[1],
+                   'FMDSTAT': style[2]}
 
 logger.info('Flat fields.')
+flats = {}
 for style in needed_flat_styles(ic):
     k = style2key(style)
     flats[k] = 1
