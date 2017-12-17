@@ -109,7 +109,7 @@ for fn in file_list:
 location = args.target
 keywords = ['obserno', 'object', 'obstype', 'date-obs', 'subarser',
             'ra', 'dec', 'airmass', 'filters', 'tempamb', 'humidity',
-            'subbias', 'flatcor']
+            'subbias', 'flatcor', 'ccdsum', 'fmdstat']
 ic = ImageFileCollection(location=location, filenames=files,
                          keywords=keywords)
 nbias = len(ic.files_filtered(obstype='BIAS'))
@@ -206,8 +206,44 @@ ic.refresh()
 
 ######################################################################
 # flat field and correction
-flats = dict()
+
+def style2key(style):
+    """Generate a flat field key based on FITS keywords.
+
+    filter
+    domeflat / skyflat
+    Binning key: 2x2 for 2x2 binning
+    NIHTS dichroic key: +D for dichroic in.
+
+    """
+
+    k = h['OBSTYPE'].lower().strip().replace(' ', '')
+    
+    k += h['CCDSUM'].strip().replace(' ', 'x')
+    
+    if h['FMDSTAT'] == 'EXTENDED':
+        k += '+D'
+
+    return k
+
+def needed_flat_styles(ic):
+    """Generate a list of needed flats for this data set.
+
+    Requires FILTERS, OBSTYPE, CCDSUM, and FMDSTAT in the image
+    collection summary.
+
+    """
+
+    data_styles = []
+    for obs in ic.summary:
+        style = (obs['filters'], obs['obstype'], obs['ccdsum'], obs['fmdstat'])
+        if style not in data_styles:
+            data_style.append(combo)
+            yield style
+
 logger.info('Flat fields.')
+for style in needed_flat_styles(ic):
+    
 for filt in filters:
     flats[filt] = 1
     for flat_key in args.flat_keys:
