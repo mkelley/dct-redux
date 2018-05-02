@@ -14,6 +14,7 @@ import json
 
 filter_names = {
     'SDSS-R': 'SDSSr',
+    'SDSS-G': 'SDSSg',
     'BC': 'BC',
     'RC': 'RC',
     'OH': 'OH',
@@ -118,7 +119,7 @@ class IgnoreObservation(Exception):
 def get_parameters(config, obserno):
     for k, p in config['targets'].items():
         for n in p['observation numbers']:
-            if n in p.get('ignore', []):
+            if obserno in p.get('ignore', []):
                 raise IgnoreObservation
             if isinstance(n, list):
                 if n[0] <= obserno and obserno <= n[1]:
