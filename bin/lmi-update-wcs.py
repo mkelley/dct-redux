@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 import argparse
+from itertools import chain
 import numpy as np
 from astropy.wcs import WCS
 from astropy.io import fits
@@ -55,6 +56,10 @@ for f in args.file:
                 saved_coords[obj] = c
         else:
             # comet or asteroid
+            for r in chain.from_iterable(m):
+                if len(r) > 0:
+                    obj = r
+
             q = callhorizons.query(obj)
             d = mskpy.date2time(hdu[0].header['DATE-OBS'])
             q.set_discreteepochs([d.jd])
