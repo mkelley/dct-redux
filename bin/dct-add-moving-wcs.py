@@ -36,14 +36,16 @@ assert len(obj) == 1, "Multiple objects found: {}".format(obj)
 t = mskpy.date2time(dates)
 
 obj = obj[0]
-m = re.findall(comet_pat, obj) + re.findall(aster_pat, obj)
+comet_match = re.findall(comet_pat, obj)
+aster_match = re.findall(aster_pat, obj)
+m = comet_match + aster_match
 assert len(m) != 0, 'Designation is not that of a comet or asteroid: {}'.format(obj)
 target = m[0][0]
 
 c = []
 print(obj)
 for i in range(len(t)):
-    q = callhorizons.query(target)
+    q = callhorizons.query(target, comet=len(comet_match) > 0)
     q.set_discreteepochs(t.jd[i])
     assert q.get_ephemerides(args.observatory) == 1, 'Error getting ephemerides.'
     _c = SkyCoord(q['RA'], q['DEC'], unit=u.deg)
@@ -65,7 +67,7 @@ for j, f in enumerate(files):
     hdu[0].header.update(w.to_header(key='M'))
     
     s = 'Added moving target WCS (key M).'
-    for line in hdu[0].header['HISTORY']:
+    for line in hdu[0].header.get('HISTORY', []):
         if s in line:
             break
     else:
