@@ -56,11 +56,7 @@ for f in args.file:
                 saved_coords[obj] = c
         else:
             # comet or asteroid
-            for r in chain.from_iterable(m):
-                if len(r) > 0:
-                    obj = r
-
-            q = callhorizons.query(obj)
+            q = callhorizons.query(m[0][0])
             d = mskpy.date2time(hdu[0].header['DATE-OBS'])
             q.set_discreteepochs([d.jd])
             q.get_ephemerides(args.observatory)
