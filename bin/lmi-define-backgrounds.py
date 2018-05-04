@@ -9,10 +9,13 @@ from astropy.table import Table, Column
 import pyds9
 import mskpy
 
-parser = argparse.ArgumentParser(description='Define background sections for target data.')
+parser = argparse.ArgumentParser(
+    description='Define background sections for target data.')
 parser.add_argument('file', nargs='+', help='FITS files to examine.')
-parser.add_argument('--overwrite', action='store_true', help='Re-define the background section.')
-parser.add_argument('-o', default='bg-sections.txt', help='Save sections to this file.')
+parser.add_argument('--overwrite', action='store_true',
+                    help='Re-define the background section.')
+parser.add_argument(
+    '-o', default='bg-sections.txt', help='Save sections to this file.')
 
 args = parser.parse_args()
 
@@ -25,16 +28,16 @@ ds9.set('cmap viridis')
 ds9.set('scale zscale')
 ds9.set('mode pointer')
 
-sections = Table(names=('file', 'sections'), dtype=('U64', 'U128'))
+sections = Table(names=('file', 'sections'), dtype=('U128', 'U256'))
 
 if os.path.exists(args.o):
     tab = ascii.read(args.o)
     os.system('cp {0} {0}~'.format(args.o))
     print('Read in previous table and created backup file.')
-    sections = Table(names=('file', 'sections'), dtype=('U64', 'U128'),
+    sections = Table(names=('file', 'sections'), dtype=('U128', 'U256'),
                      data=(tab['file'].data, tab['sections'].data))
 else:
-    sections = Table(names=('file', 'sections'), dtype=('U64', 'U128'))
+    sections = Table(names=('file', 'sections'), dtype=('U128', 'U256'))
 
 c = None
 last_object = None
@@ -62,16 +65,18 @@ for f in sorted(args.file):
                 xw = np.array(corners[:2]).ptp()
                 yc = np.array(corners[2:]).mean().astype(int) + 1
                 yw = np.array(corners[2:]).ptp()
-                ds9.set('regions', 'box({}, {}, {}, {}, 0)'.format(xc, yc, xw, yw))
+                ds9.set(
+                    'regions', 'box({}, {}, {}, {}, 0)'.format(xc, yc, xw, yw))
         else:
             xc, yc = h['CX'] + 1, h['CY'] + 1
             rinner, router = [int(x) for x in section[3:].split(',')]
-            ds9.set('regions', 'annulus({}, {}, {}, {})'.format(rinner, router))
+            ds9.set(
+                'regions', 'annulus({}, {}, {}, {})'.format(rinner, router))
     else:
         if h['OBJECT'] == last_object:
             ds9.set('regions system wcs')
             regions = ds9.get('regions')
-            
+
         ds9.set('fits {}'.format(f))
         ds9.set('zoom to 0.25')
 
@@ -99,13 +104,13 @@ for f in sorted(args.file):
         boxes = []
         for box in re.findall(boxpat, regions):
             x, y, xw, yw, angle = [float(v) for v in box[::3]]
-            corners = [y - yw/2, y + yw/2, x - xw/2, x + xw/2]
+            corners = [y - yw / 2, y + yw / 2, x - xw / 2, x + xw / 2]
             boxes.append('[{:.0f}:{:.0f}, {:.0f}:{:.0f}]'.format(
                 *corners))
         section = 's: {}'.format('+'.join(boxes))
     elif 'annulus' in regions:
         for annulus in re.findall(annpat, regions)[:1]:
-            x, y, r0, r1  = [float(v) for v in annulus[::3]]
+            x, y, r0, r1 = [float(v) for v in annulus[::3]]
         section = 'r: {:.0f}, {:.0f}'.format(r0, r1)
 
     if section is not None:
