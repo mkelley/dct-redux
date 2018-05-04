@@ -16,10 +16,13 @@ comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
 aster_pat = ('^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)'
              '|(\(([1-9][0-9]*)\)))')
 
-parser = argparse.ArgumentParser(description='Update LMI WCS using already centered targets.')
+parser = argparse.ArgumentParser(
+    description='Update LMI WCS using already centered targets.')
 parser.add_argument('file', nargs='+', help='FITS images to update.')
-parser.add_argument('--celestial', default=None, help='The aligned object is a celestial source with this "RA,Dec".  Celestial coordinates can be in any format usable by astropy.Angle (include units).')
-parser.add_argument('--observatory', default='G37', help='Observatory location (for HORIZONS).')
+parser.add_argument('--celestial', default=None,
+                    help='The aligned object is a celestial source with this "RA,Dec".  Celestial coordinates can be in any format usable by astropy.Angle (include units).')
+parser.add_argument('--observatory', default='G37',
+                    help='Observatory location (for HORIZONS).')
 
 args = parser.parse_args()
 saved_coords = {}
@@ -52,11 +55,13 @@ for f in args.file:
                 if q is None:
                     print(f, obj, ' not found in Simbad.')
                     continue
-                c = SkyCoord(q['RA'][0], q['DEC'][0], unit=(u.hourangle, u.deg))
+                c = SkyCoord(
+                    q['RA'][0], q['DEC'][0], unit=(u.hourangle, u.deg))
                 saved_coords[obj] = c
         else:
             # comet or asteroid
-            q = callhorizons.query(m[0][0])
+            comet_flag = re.findall(comet_pat, obj) is not None
+            q = callhorizons.query(m[0][0], comet=comet_flag)
             d = mskpy.date2time(hdu[0].header['DATE-OBS'])
             q.set_discreteepochs([d.jd])
             q.get_ephemerides(args.observatory)
@@ -86,4 +91,3 @@ for f in args.file:
 
     hdu.writeto(f, overwrite=True)
     hdu.close()
-    
