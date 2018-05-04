@@ -67,8 +67,8 @@ for f in args.file:
             q.get_ephemerides(args.observatory)
             c = SkyCoord(q['RA'][0], q['DEC'][0], unit=u.deg)
     else:
-        ra, dec = [Angle(a) for a in args.celestial.split(',')]
-        c = SkyCoord(ra, dec)
+        ra, dec = [a for a in args.celestial.split(',')]
+        c = SkyCoord(ra, dec, unit=('hourangle', 'deg'))
         obj = 'celestial source'
 
     if 'EQUINOX' in hdu[0].header:
