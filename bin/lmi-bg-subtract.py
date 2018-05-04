@@ -17,20 +17,28 @@ filter_names = {
     'SDSS-G': 'SDSSg',
     'BC': 'BC',
     'RC': 'RC',
+    'UC': 'UC',
     'OH': 'OH',
     'CN': 'CN',
+    'C2': 'C2',
+    'NH': 'NH',
     'V': 'V'
 }
 
-parser = argparse.ArgumentParser(description='Background subtraction and exposure time normalization.', formatter_class=argparse.RawDescriptionHelpFormatter)
+parser = argparse.ArgumentParser(
+    description='Background subtraction and exposure time normalization.',
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('files', nargs='+', help='Data to background subtract.')
 parser.add_argument('target', help='Path for background subtracted data.')
-parser.add_argument('--config', default='comet-phot.config', help='Configuration file.  Used to determine which files to consider, which files to ignore, and if additional filtering is needed (e.g., destripe).')
-parser.add_argument('--sections', default='bg-sections.txt', help='Name of the background section definition file.')
-parser.add_argument('--overwrite', action='store_true', help='Overwrite exsiting files.')
+parser.add_argument('--config', default='comet-phot.config',
+                    help='Configuration file.  Used to determine which files to consider, which files to ignore, and if additional filtering is needed (e.g., destripe).')
+parser.add_argument('--sections', default='bg-sections.txt',
+                    help='Name of the background section definition file.')
+parser.add_argument(
+    '--overwrite', action='store_true', help='Overwrite exsiting files.')
 args = parser.parse_args()
 
-######################################################################
+#
 # setup logging
 logger = logging.Logger('LMI background subtract.')
 logger.setLevel(logging.DEBUG)
@@ -54,9 +62,12 @@ logger.info('#' * 70)
 logger.info(datetime.now().isoformat())
 logger.info('Command line: ' + ' '.join(sys.argv[1:]))
 
-########################################################################
+#
+
+
 class BackgroundError(Exception):
     pass
+
 
 def measure_bg(im, yx, section):
     from mskpy import bgphot, meanclip
@@ -78,6 +89,7 @@ def measure_bg(im, yx, section):
 
     return float(bg), int(n), float(sig)
 
+
 def horiz_destripe(hdu, p):
     import scipy.ndimage as nd
     from astropy.convolution import convolve_fft, Gaussian2DKernel
@@ -98,23 +110,30 @@ def horiz_destripe(hdu, p):
     stripes = np.outer(np.nanmean(masked, 1), np.ones(hdu[0].data.shape[1]))
     return stripes
 
-########################################################################
-def add_bg_to_header(header, bg, area, sig, sect):    
+#
+
+
+def add_bg_to_header(header, bg, area, sig, sect):
     header.add_history('Background estimate based on a sigma-clipped mean.')
     if 'backgrnd' in header:
         # background already subtracted at least once, add to backgrnd keyword
         header['backgrnd'] = header['backgrnd'] + bg
     else:
-        header['backgrnd'] = bg, 'Background estimate, {} per pixel.'.format(header['bunit'])
-        header['bgarea'] = area, 'Number of pixels used for background estimate.'
+        header['backgrnd'] = bg, 'Background estimate, {} per pixel.'.format(
+            header['bunit'])
+        header[
+            'bgarea'] = area, 'Number of pixels used for background estimate.'
         header['bgsig'] = sig, 'Background standard deviation.'
         header['bgsect'] = sect, 'Background area definition.'
 
     return header
 
-########################################################################
+#
+
+
 class IgnoreObservation(Exception):
     pass
+
 
 def get_parameters(config, obserno):
     for k, p in config['targets'].items():
@@ -128,9 +147,10 @@ def get_parameters(config, obserno):
                 if obserno == n:
                     return k, p
 
-    raise ValueError('Observation number {} not found in config.'.format(obserno))
+    raise ValueError(
+        'Observation number {} not found in config.'.format(obserno))
 
-########################################################################
+#
 sections = ascii.read(args.sections)
 for i in range(len(sections)):
     sections[i]['file'] = os.path.basename(sections[i]['file'])
@@ -141,7 +161,7 @@ with open(args.config, 'r') as inf:
     config = json.load(inf)
 logger.info('Using configuration:\n{}'.format(str(config)))
 
-########################################################################
+#
 # Clean the data...
 for f in args.files:
     hdu = fits.open(f, mode='readonly')
@@ -159,7 +179,7 @@ for f in args.files:
     time = time[:8].replace(':', '')
 
     filt = hdu[0].header['filters']
-    
+
     file_parts = [target_set, date, time, filter_names[filt]]
     if hdu[0].header.get('MOSAIC') is None:
         mosaic = False
@@ -170,7 +190,7 @@ for f in args.files:
     outfn = '{}/{}.fits'.format(args.target, '-'.join(file_parts))
 
     if os.path.exists(outfn) and not args.overwrite:
-        logger.info('{} exists, skipping.'.format(f))
+        logger.info('{} exists, skipping.'.format(outfn))
         continue
 
     logger.info(f)
@@ -180,10 +200,14 @@ for f in args.files:
         hdu[0].header['TARGTSET'] = target_set
         hdu[0].data /= hdu[0].header['EXPTIME']
         hdu[0].header['BUNIT'] = 'DN/s'
-        hdu[0].header['GAIN'] = hdu[0].header['GAIN'] * hdu[0].header['EXPTIME'], 'e-/(DN/s)'
+        hdu[0].header['GAIN'] = hdu[0].header['GAIN'] * \
+            hdu[0].header['EXPTIME'], 'e-/(DN/s)'
 
     cyx = hdu[0].header['CRPIX2M'], hdu[0].header['CRPIX1M']
-    i = np.flatnonzero(sections['file'] == os.path.basename(f))[0]
+    try:
+        i = np.flatnonzero(sections['file'] == os.path.basename(f))[0]
+    except IndexError:
+        raise ValueError('Missing background for ', os.path.basename(f))
     sect = sections[i]['sections']
 
     bg, bgarea, bgsig = measure_bg(hdu[0].data, cyx, sect)
