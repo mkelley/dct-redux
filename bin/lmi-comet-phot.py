@@ -17,10 +17,14 @@ import json
 
 filter_names = {
     'SDSS-R': 'SDSSr',
+    'SDSS-G': 'SDSSg',
     'BC': 'BC',
     'RC': 'RC',
+    'UC': 'UC',
     'OH': 'OH',
+    'NH': 'NH',
     'CN': 'CN',
+    'C2': 'C2',
     'V': 'V'
 }
 solar_gmr = 0.98 * 0.649 - 0.19  # Smith et al. 2002 and Colina et
@@ -49,16 +53,21 @@ parser = argparse.ArgumentParser(description='Moving target photometry.', epilog
 }
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('files', nargs='+', help='Input data.')
-parser.add_argument('--config', default='comet-phot.config', help='Configuration file.')
+parser.add_argument(
+    '--config', default='comet-phot.config', help='Configuration file.')
 parser.add_argument('-o', default='comet-phot.txt', help='Output file.')
-parser.add_argument('--append', action='store_true', help='Append to output file.')
-parser.add_argument('--no-fixpix', action='store_false', dest='fixpix', help='Do not replace NaNs with nearby median.')
-parser.add_argument('--overwrite', action='store_true', help='Overwrite output file, if it exists.')
+parser.add_argument(
+    '--append', action='store_true', help='Append to output file.')
+parser.add_argument('--no-fixpix', action='store_false',
+                    dest='fixpix', help='Do not replace NaNs with nearby median.')
+parser.add_argument('--overwrite', action='store_true',
+                    help='Overwrite output file, if it exists.')
 args = parser.parse_args()
 
-assert not (args.append and args.overwrite), 'Only one of --append or --overwrite may be specified.'
+assert not (
+    args.append and args.overwrite), 'Only one of --append or --overwrite may be specified.'
 
-######################################################################
+#
 # setup logging
 logger = logging.Logger('LMI comet photometry')
 logger.setLevel(logging.DEBUG)
@@ -82,7 +91,9 @@ logger.info('#' * 70)
 logger.info(datetime.now().isoformat())
 logger.info('Command line: ' + ' '.join(sys.argv[1:]))
 
-########################################################################
+#
+
+
 def correction(header, calset, solar_color=False):
     from mskpy.photometry import airmass_app, hb
 
@@ -100,14 +111,16 @@ def correction(header, calset, solar_color=False):
 
     return am, m0, m0_unc
 
+
 class IgnoreObservation(Exception):
     pass
 
+
 def get_parameters(config, obserno):
     for k, p in config['targets'].items():
+        if obserno in p.get('ignore', []):
+            raise IgnoreObservation
         for n in p['observation numbers']:
-            if n in p.get('ignore', []):
-                raise IgnoreObservation
             if isinstance(n, list):
                 if n[0] <= obserno and obserno <= n[1]:
                     return k, p
@@ -115,14 +128,15 @@ def get_parameters(config, obserno):
                 if obserno == n:
                     return k, p
 
-    raise ValueError('Observation number {} not found in config.'.format(obserno))
+    raise ValueError(
+        'Observation number {} not found in config.'.format(obserno))
 
-########################################################################
+#
 with open(args.config, 'r') as inf:
     config = json.load(inf)
 logger.info('Using configuration:\n{}'.format(str(config)))
 
-########################################################################
+#
 phot = Table(names=('file', 'target', 'filter', 'mosaic', 'date', 'time',
                     'airmass', 'ZA', 'rap', 'flux', 'f unc', 'm', 'm unc'),
              dtype=['U64', 'U64', 'U6', 'U6', 'U10', 'U8'] + [float] * 7)
@@ -133,7 +147,7 @@ for col in ['m', 'm unc']:
 for col in ['rap']:
     phot[col].format = '{:.1f}'
 
-########################################################################
+#
 # photometry in magnitudes
 for f in args.files:
     hdu = fits.open(f, mode='readonly')
@@ -167,7 +181,7 @@ for f in args.files:
         m = nd.median_filter(im, 11)
         im[im.mask] = m[im.mask]
         im.mask = False
-    
+
     area, flux = apphot(hdu[0].data, cyx, p['rap'], subsample=2)
     if area.ndim == 0:
         area = area.reshape((1,))
@@ -183,7 +197,7 @@ for f in args.files:
     m = np.ones_like(flux) * np.nan
     m[i] = -2.5 * np.log10(flux[i]) + m0
     munc = np.sqrt((1.0857 * func / np.abs(flux))**2 + m0_unc**2)
-    
+
     for i in range(len(p['rap'])):
         row = [f, hdu[0].header['OBJECT'], filter_names[filt], mosaic]
         row.extend(hdu[0].header['DATE-OBS'].split('T'))
@@ -201,9 +215,8 @@ else:
     if args.append:
         saved = ascii.read(args.o)
         phot = hstack((saved, phot))
-    
+
     mskpy.write_table(args.o, phot, {},
                       comments=['OH photometry is in instrumental magnitudes.',
                                 'Units: UT, deg, pixels, DN/s, mag'],
                       overwrite=True)
-
