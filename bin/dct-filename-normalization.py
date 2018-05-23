@@ -4,9 +4,11 @@ from astropy.io import fits
 import argparse
 
 parser = argparse.ArgumentParser(description='Rename DCT data files.',
-                                 epilog='Requires TELESCOP="DCT", INSTRUME="LMI", BITPIX=16, BUNIT="ADU", valid OBSERNO and DATE-OBS.  OBSERNO must be <10000.')
-parser.add_argument('files', nargs='*', help='The files to rename.  Files with the appropriate FITS keywords will be modified, others will be ignored.')
-parser.add_argument('-n', action='store_true', help='No-operation mode.  Just print what would have happened.')
+                                 epilog='Requires TELESCOP="DCT", INSTRUME="LMI" or "Deveny", BITPIX=16, BUNIT="ADU", valid OBSERNO and DATE-OBS.  OBSERNO must be <10000.')
+parser.add_argument('files', nargs='*',
+                    help='The files to rename.  Files with the appropriate FITS keywords will be modified, others will be ignored.')
+parser.add_argument('-n', action='store_true',
+                    help='No-operation mode.  Just print what would have happened.')
 
 args = parser.parse_args()
 
@@ -16,11 +18,19 @@ not_fits = 0
 could_not_rename = 0
 good_file_name = 0
 
+instrument_prefix = {
+    'LMI': 'lmi',
+    'Deveny': 'deveny'
+}
+
+
 class CouldNotRenameFile(Exception):
     pass
 
+
 class FileExists(Exception):
     pass
+
 
 for fn in args.files:
     try:
@@ -31,13 +41,15 @@ for fn in args.files:
             assert hdu[0].header['BITPIX'] == 16
             assert hdu[0].header['BUNIT'] == 'ADU'
             assert hdu[0].header['TELESCOP'] == 'DCT'
-            assert hdu[0].header['INSTRUME'] == 'LMI'
+            assert hdu[0].header['INSTRUME'] in instrument_prefix
+
+            inst = instrument_prefix[hdu[0].header['INSTRUME']]
 
             number = hdu[0].header['OBSERNO']
             if number > 9999:
                 skipped += 1
                 continue
-            
+
             date = hdu[0].header['DATE-OBS'][:10].split('-')
             assert int(date[0]) > 2010
             assert int(date[1]) > 0 and int(date[1]) < 13
@@ -45,13 +57,14 @@ for fn in args.files:
             date = ''.join(date)
 
         path = os.path.split(fn)[0]
-        new_fn = os.path.join(path, 'lmi_{}_{:04d}_raw.fits'.format(date, number))
+        new_fn = os.path.join(
+            path, '{}_{}_{:04d}_raw.fits'.format(inst, date, number))
 
         if fn == new_fn:
             print('{} already a good file name.'.format(fn))
             good_file_name += 1
             continue
-        
+
         print('{} -> {}'.format(fn, new_fn))
         if os.path.exists(new_fn):
             raise FileExists
