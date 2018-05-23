@@ -21,11 +21,12 @@ where keyword is a "|" separated list of keywords to verify or change.
 Allowed keywords:
   {}
 """.format('\n  '.join(allowed_keywords)),
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    formatter_class=argparse.RawDescriptionHelpFormatter)
 
 parser.add_argument('fixesfile', type=str, action='store',
                     help='Name of parameter file.')
-parser.add_argument('-n', action='store_true', help='No-operation mode: summarizes changes that would be made.')
+parser.add_argument('-n', action='store_true',
+                    help='No-operation mode: summarizes changes that would be made.')
 args = parser.parse_args()
 
 if not os.path.exists('originals'):
@@ -45,7 +46,10 @@ for row in ascii.read(args.fixesfile):
     for i in range(row['first frame'], row['last frame'] + 1):
         file_tests = ['lmi.{:04d}.fits'.format(i),
                       'lmi_????????_{:04d}_raw.fits'.format(i),
-                      'lmi_????????_{:04d}_ppp.fits'.format(i)]
+                      'lmi_????????_{:04d}_ppp.fits'.format(i),
+                      '2???????.{:04d}.fits'.format(i),
+                      'deveny_2???????_{:04d}_raw.fits'.format(i),
+                      'deveny_2???????_{:04d}_ppp.fits'.format(i)]
         for fn in file_tests:
             try:
                 fn = glob(fn)[0]
@@ -59,7 +63,7 @@ for row in ascii.read(args.fixesfile):
         test = []
         for k in row['keyword'].split('|'):
             test.append(h[k] != row['value'])
-            
+
         if not any(test):
             continue
         else:
