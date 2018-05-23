@@ -20,6 +20,7 @@ filter_names = {
     'UC': 'UC',
     'OH': 'OH',
     'CN': 'CN',
+    'CO+': 'CO+',
     'C2': 'C2',
     'NH': 'NH',
     'V': 'V'

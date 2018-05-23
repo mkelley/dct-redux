@@ -24,6 +24,7 @@ filter_names = {
     'OH': 'OH',
     'NH': 'NH',
     'CN': 'CN',
+    'CO+': 'CO+',
     'C2': 'C2',
     'V': 'V'
 }
