@@ -1,4 +1,4 @@
-# dct-redux
+# dct-redux v0.2.0
 Python scripts for reducing DCT data, mostly focused on comet data.
 
 ## Status
