@@ -11,17 +11,21 @@ from astropy import units as u
 import ccdproc
 from ccdproc import CCDData, ImageFileCollection, combine
 
+
 class Config:
     file_template = 'lmi_[0-9]{8}_[0-9]{4}_raw.fits'
 
+
 def mode_scaler(im, s=np.s_[660:2600, 660:2600]):
     return 1 / (3 * np.ma.median(im[s]) - 2 * np.ma.mean(im[s]))
+
 
 def translate_slice(s):
     """Translate a FITS slice (string) to Python slice."""
     m = re.match('\[(\d+):(\d+),(\d+):(\d+)\]', s.replace(' ', ''))
     i = [int(x) for x in m.groups()]
     return np.s_[i[2]-1:i[3], i[0]-1:i[1]]
+
 
 def subarray_slice(s, ccdsum):
     """Define a Python slice from LMI subframe keywords."""
@@ -33,18 +37,27 @@ def subarray_slice(s, ccdsum):
     x1 = s1[1].stop // xb
     return np.s_[y0:y1, x0:x1]
 
+
 class IntListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         v = [int(x) for x in values.split(',')]
         setattr(namespace, self.dest, v)
 
-parser = argparse.ArgumentParser(description='Generate partially processed LMI data.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('file_list', help='A list of files to process.  They must all have file names of the form: lmi_YYYYMMDD_NNNN_raw.fits.  Blank lines and lines beginning with # are ignored.')
-parser.add_argument('--target', default='ppp', help='Save processed files to this target directory.')
-parser.add_argument('--flat-keys', default='SKY FLAT,DOME FLAT', type=lambda s: s.split(','), help='Object type for flat fields, may be a comma-separated list.')
-parser.add_argument('--no-lacosmic', dest='lacosmic', action='store_false', help='Do not run L.A.Cosmic.')
-parser.add_argument('--reprocess-data', action='store_true', help='Reprocess data files.')
-parser.add_argument('--reprocess-all', action='store_true', help='Recreate bias, flat, and all data files.')
+
+parser = argparse.ArgumentParser(description='Generate partially processed LMI data.',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument(
+    'file_list', help='A list of files to process.  They must all have file names of the form: lmi_YYYYMMDD_NNNN_raw.fits.  Blank lines and lines beginning with # are ignored.')
+parser.add_argument('--target', default='ppp',
+                    help='Save processed files to this target directory.')
+parser.add_argument('--flat-keys', default='SKY FLAT,DOME FLAT', type=lambda s: s.split(','),
+                    help='Object type for flat fields, may be a comma-separated list.')
+parser.add_argument('--no-lacosmic', dest='lacosmic',
+                    action='store_false', help='Do not run L.A.Cosmic.')
+parser.add_argument('--reprocess-data', action='store_true',
+                    help='Reprocess data files.')
+parser.add_argument('--reprocess-all', action='store_true',
+                    help='Recreate bias, flat, and all data files.')
 
 args = parser.parse_args()
 
@@ -89,7 +102,8 @@ if file_list.ndim == 0:
 for fn in file_list:
     fn = fn.decode()
     if re.fullmatch(Config.file_template, os.path.split(fn)[1]) is None:
-        logger.error('{} does not match template, lmi-YYYYMMDD-NNNN-raw.fits.'.format(fn))
+        logger.error(
+            '{} does not match template, lmi-YYYYMMDD-NNNN-raw.fits.'.format(fn))
         continue
 
     fn_new = os.path.split(fn)[1].replace('raw', 'ppp')
@@ -98,7 +112,7 @@ for fn in file_list:
     fn_new = os.sep.join((args.target, fn_new))
     if os.path.exists(fn_new) and not args.reprocess_data:
         continue
-    
+
     shutil.copy(fn, fn_new)
     os.chmod(fn_new, 0o644)
 
@@ -166,7 +180,8 @@ for subframe in subframes:
         logger.info('  Read subframe = {}.'.format(subframe))
         bias[subframe] = CCDData.read(fn)
     elif nbias == 0:
-        logger.warning('  No bias files provided and {} not found.  Not subtracting bias for subframe == {}.'.format(fn, subframe))
+        logger.warning(
+            '  No bias files provided and {} not found.  Not subtracting bias for subframe == {}.'.format(fn, subframe))
         bias[subframe] = 0 * u.adu
     else:
         logger.info('  Create subframe = {}.'.format(subframe))
@@ -206,6 +221,8 @@ ic.refresh()
 
 ######################################################################
 # flat field and correction
+
+
 def style2key(style):
     """Generate a flat field key based on FITS keywords.
 
@@ -223,6 +240,7 @@ def style2key(style):
 
     return k
 
+
 def needed_flat_styles(ic):
     """Generate a list of needed flats for this data set.
 
@@ -234,13 +252,14 @@ def needed_flat_styles(ic):
     for obs in ic.summary:
         if obs['filters'] == 'DARK':
             continue
-        
+
         style = (obs['filters'], obs['ccdsum'], obs['fmdstat'])
         if style not in data_styles:
             data_styles.append(style)
             yield {'FILTERS': style[0],
                    'CCDSUM': style[1],
                    'FMDSTAT': style[2]}
+
 
 logger.info('Flat fields.')
 flats = {}
@@ -256,11 +275,16 @@ for style in needed_flat_styles(ic):
             logger.info('  Reading {}.'.format(fn))
             flats[k] = CCDData.read(fn)
         elif len(ic.files_filtered(obstype=flat_key, **style)) == 0:
-            logger.warning('No {} files provided for {} and {} not found.'.format(flat_key, filt, fn))
+            logger.warning(
+                'No {} files provided for {} and {} not found.'.format(flat_key, filt, fn))
         else:
             logger.info('  Generating {}.'.format(fn))
             files = ic.files_filtered(obstype=flat_key, subarser=0, **style)
             files = [os.sep.join([ic.location, f]) for f in files]
+            if len(files) == 0:
+                logger.warning('No files to combine for {}.'.format(k))
+                continue
+
             flat = combine(files, method='median', scale=mode_scaler)
 
             flat.mask = (flat.data > 1.2) + (flat.data < 0.8)
@@ -276,7 +300,8 @@ for style in needed_flat_styles(ic):
                 flats[k] = flat
 
 ic.refresh()
-i = (ic.summary['obstype'] != 'BIAS') & ic.summary['flatcor'].mask & ~ic.summary['subbias'].mask
+i = (ic.summary['obstype'] !=
+     'BIAS') & ic.summary['flatcor'].mask & ~ic.summary['subbias'].mask
 logger.info('  {} files to flat correct.'.format(sum(i)))
 for fn in ic.summary['file'][i]:
     ccd = ccdproc.fits_ccddata_reader(os.sep.join([ic.location, fn]))
@@ -296,7 +321,7 @@ for fn in ic.summary['file'][i]:
                            ccd.meta['CCDSUM'])
         t = subarray_slice(ccd.meta['TRIMSEC'], '1 1')  # flat was not trimmed
     ccd = ccdproc.flat_correct(ccd, flats[flatkey][s][t])
-    
+
     if args.lacosmic:
         cleaned = ccdproc.cosmicray_lacosmic(
             ccd, pssl=1100, gain=ccd.meta['gain'], readnoise=6)
