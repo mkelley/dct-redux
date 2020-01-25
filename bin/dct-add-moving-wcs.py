@@ -8,7 +8,7 @@ from astroquery.simbad import Simbad
 import astropy.coordinates as coords
 from astropy.coordinates import SkyCoord
 import astropy.units as u
-import callhorizons
+from astroquery.jplhorizons import Horizons
 import mskpy
 
 comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
@@ -16,9 +16,11 @@ comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
 aster_pat = ('^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)'
              '|(\(([1-9][0-9]*)\)))')
 
-parser = argparse.ArgumentParser(description='Add a WCS centered on a moving target.')
+parser = argparse.ArgumentParser(
+    description='Add a WCS centered on a moving target.')
 parser.add_argument('file', nargs='+', help='FITS images to update.')
-parser.add_argument('--observatory', default='G37', help='Observatory location (for HORIZONS).')
+parser.add_argument('--observatory', default='G37',
+                    help='Observatory location (for HORIZONS).')
 
 args = parser.parse_args()
 files = sorted(args.file)
@@ -45,10 +47,14 @@ target = m[0][0]
 c = []
 print(obj)
 for i in range(len(t)):
-    q = callhorizons.query(target, comet=len(comet_match) > 0)
-    q.set_discreteepochs(t.jd[i])
-    assert q.get_ephemerides(args.observatory) == 1, 'Error getting ephemerides.'
-    _c = SkyCoord(q['RA'], q['DEC'], unit=u.deg)
+    q = Horizons(id=target, id_type='designation', epochs=t.jd[i],
+                 location='G37')
+    if comet_match:
+        opts = dict(closest_apparition=True, no_fragments=True)
+    else:
+        opts = {}
+    eph = q.ephemerides(**opts)
+    _c = SkyCoord(eph['RA'], eph['DEC'], unit=u.deg)
     print('  ', t[i].iso, _c.to_string('hmsdms')[0])
     c.append(_c)
 
@@ -65,7 +71,7 @@ for j, f in enumerate(files):
     w.wcs.cd = np.array([[-1, 0], [0, 1]]) * 0.24 / 3600
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     hdu[0].header.update(w.to_header(key='M'))
-    
+
     s = 'Added moving target WCS (key M).'
     for line in hdu[0].header.get('HISTORY', []):
         if s in line:

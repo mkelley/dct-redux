@@ -8,7 +8,7 @@ from astropy.io import fits
 from astroquery.simbad import Simbad
 from astropy.coordinates import SkyCoord, Angle
 import astropy.units as u
-import callhorizons
+from astroquery.jplhorizons import Horizons
 import mskpy
 
 comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
@@ -61,10 +61,14 @@ for f in args.file:
         else:
             # comet or asteroid
             comet_flag = re.findall(comet_pat, obj) is not None
-            q = callhorizons.query(m[0][0], comet=comet_flag)
             d = mskpy.date2time(hdu[0].header['DATE-OBS'])
-            q.set_discreteepochs([d.jd])
-            q.get_ephemerides(args.observatory)
+            q = Horizons(id=m[0][0], id_type='designation', epochs=d.jd,
+                         location=args.observatory)
+            if comet:
+                opts = dict(closest_apparition=True, no_fragments=True)
+            else:
+                opts = {}
+            eph = q.ephemerides(**opts)
             c = SkyCoord(q['RA'][0], q['DEC'][0], unit=u.deg)
     else:
         ra, dec = [a for a in args.celestial.split(',')]

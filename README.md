@@ -43,10 +43,51 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
    lmi-rx.py all.list
    ```
 
+1. Add world coordinates:
+
+	```bash
+	mkdir wcs
+	cd wcs
+	lmi-solve-wcs.sh ../ppp/lmi*fits
+	cd ..
+	```
+	   
 1. Create a hierarchical path structure with the data sorted by target and filter.  This does not copy the data, but makes hard links to the `ppp/` directory.
    ```bash
    lmi-sort.py ppp
    ```
+   
+1. Add world coordinate system centered on moving targets:
+
+	```bash
+	dct-add-moving-wcs.py sorted/target/*/*
+	```
+
+1. Add world coordinate system centered on moving targets:
+
+	```bash
+	dct-add-moving-wcs.py sorted/target/*/*
+	
+	# Propagate changes back to ppp directory and regenerate sorted (need a better way to do this!)
+	\cp sorted/*/*/*fits ppp/
+	rm -rf sorted/
+	lmi-sort.py ppp
+	```
+
+1. Copy world coordinate system for frames without solutions, e.g.,:
+
+	```bash
+	
+	```
+
+1. Add photometry catalog (experimental):
+
+	```bash
+	lmi-add-cat.py ppp/lmi*fits
+	```
+
+
+
 
 1. Center on targets or stars by hand.  Uses script from `mskpy`:
    ```bash
