@@ -113,5 +113,11 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
      (cd $d; dct-add-moving-wcs.py */*fits)
    done
    ```
+   
+1. Standard star photometry:
+
+	```bash
+	lmi-standard-phot.py ../ppp/lmi*fits
+	```
 
 More later.
