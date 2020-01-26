@@ -35,6 +35,9 @@ parser.add_argument('-f', action='store_true',
 
 args = parser.parse_args()
 
+if os.path.exists(args.o) and not args.f:
+    raise SystemExit('Refusing to overwrite output file.')
+
 HB_FILTERS = ['OH', 'NH', 'UC', 'CN', 'C3', 'CO+', 'BC',
               'C2', 'GC', 'H2O+', 'RC']
 elevation = 2380 * u.m  # DCT elevation
@@ -129,8 +132,8 @@ catalogs = {
     'Smith et al 2002': smith02()
 }
 
-columns = ['file', 'catalog', 'object', 'date', 'za',
-           'airmass', 'filter', 'm', 'm_err', 'm_inst', 'm_inst_err']
+columns = ['file', 'catalog', 'object', 'date', 'za', 'airmass', 'filter',
+           'color', 'm', 'm_err', 'm_inst', 'm_inst_err']
 formats = {
     'airmass': '{:.4f}',
     'm': '{:.4f}',
@@ -172,8 +175,10 @@ for f in sorted(args.files):
             for j, (i, dist, d3) in enumerate(zip(*matches)):
                 if dist < dmax:
                     n += 1
-                    rows.append((f, name, cat['names'][i], date, za, am, filt,
-                                 cat[filt][i], cat[filt + '_err'][i], m[j], merr[j]))
+                    rows.append((f, name, cat['names'][i], date, za,
+                                 am, filt, cat['color'][i],
+                                 cat[filt][i], cat[filt + '_err'][i],
+                                 m[j], merr[j]))
 
         logger.info('{}: {} standards found'.format(f, n))
 
