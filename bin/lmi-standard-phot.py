@@ -158,12 +158,13 @@ for f in sorted(args.files):
         za = h['ZA']
         am = airmass_app(h['ZA'] * u.deg, elevation)
         filt = h['filters']
+        exptime = h['exptime']
 
         phot = Table(hdu['CAT'].data)
         w = WCS(hdu[0])
         coords = SkyCoord(*w.pixel_to_world_values(list(zip(phot['x'], phot['y']))).T,
                           unit='deg')
-        m = -2.5 * np.log10(phot['krflux'])
+        m = -2.5 * np.log10(phot['krflux'] / exptime)
         merr = 1.0857 * phot['krfluxerr'] / phot['krflux']
 
         n = 0
