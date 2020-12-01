@@ -136,6 +136,7 @@ columns = ['file', 'catalog', 'object', 'date', 'za', 'airmass', 'filter',
            'color', 'm', 'm_err', 'm_inst', 'm_inst_err']
 formats = {
     'airmass': '{:.4f}',
+    'color': '{:.4f}',
     'm': '{:.4f}',
     'm_err': '{:.4f}',
     'm_inst': '{:.4f}',

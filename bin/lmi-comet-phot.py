@@ -29,7 +29,7 @@ filter_names = {
     'V': 'V'
 }
 solar_gmr = 0.98 * 0.649 - 0.19  # Smith et al. 2002 and Colina et
-                                 # al. 1996 / Bessell et al. 1998
+# al. 1996 / Bessell et al. 1998
 DCT_elevation = 2361 * u.m  # elevation of DCT
 
 parser = argparse.ArgumentParser(description='Moving target photometry.', epilog="""Configuration file format:
@@ -132,6 +132,7 @@ def get_parameters(config, obserno):
     raise ValueError(
         'Observation number {} not found in config.'.format(obserno))
 
+
 #
 with open(args.config, 'r') as inf:
     config = json.load(inf)
@@ -171,13 +172,17 @@ for f in args.files:
     hdu[0].header['M0UNC'] = m0_unc, 'Uncertainty on M0'
     hdu[0].header['F0'] = hb.F_0[filt].value, 'Magnitude zero-point, W/m2/um'
 
+    exptime = hdu[0].header['exptime']
+
     cyx = hdu[0].header['CRPIX2M'], hdu[0].header['CRPIX1M']
-    bgarea = hdu[0].header['bgarea']
-    bgsig = hdu[0].header['bgsig']
+    bg = hdu['bg'].data
+    bgsig = hdu['bg'].header['rms']
     mosaic = hdu[0].header.get('MOSAIC', '')
 
     im = np.ma.MaskedArray(hdu[0].data)
-    im.mask = ~np.isfinite(im)
+    im -= bg
+
+    im.mask = ~np.isfinite(im) + hdu['mask'].data.astype(bool)
     if args.fixpix and np.any(im.mask):
         m = nd.median_filter(im, 11)
         im[im.mask] = m[im.mask]
@@ -188,12 +193,15 @@ for f in args.files:
         area = area.reshape((1,))
         flux = flux.reshape((1,))
 
-    var = area * bgsig**2 * (1 + area / bgarea)
+    var = area * bgsig**2
     i = flux > 0
     if any(i):
         var[i] += flux[i] / hdu[0].header['GAIN']
 
     func = np.sqrt(var)
+
+    flux /= exptime
+    func /= exptime
 
     m = np.ones_like(flux) * np.nan
     m[i] = -2.5 * np.log10(flux[i]) + m0
