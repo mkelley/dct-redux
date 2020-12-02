@@ -42,7 +42,7 @@ else:
 
 files_edited = 0
 
-for row in ascii.read(args.fixesfile):
+for row in ascii.read(args.fixesfile, format='csv', delimiter=',', fast_reader=False):
     for i in range(row['first frame'], row['last frame'] + 1):
         file_tests = ['lmi.{:04d}.fits'.format(i),
                       'lmi_????????_{:04d}_raw.fits'.format(i),
