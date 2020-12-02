@@ -10,7 +10,7 @@ The scripts for early steps in the reduction, e.g., file name normalization and 
 * ccdproc
 * DS9
 * pyds9
-* callhorizons
+* astroquery
 * mskpy
 
 For file name normalization and FITS header fixing, just `astropy` is needed.
