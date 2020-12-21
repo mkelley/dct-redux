@@ -12,6 +12,7 @@ The scripts for early steps in the reduction, e.g., file name normalization and 
 * pyds9
 * astroquery
 * mskpy
+* calc - command line calculator, http://www.isthe.com/chongo/tech/comp/calc/
 
 For file name normalization and FITS header fixing, just `astropy` is needed.
 
