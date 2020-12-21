@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
+import pdb
 import os
 import re
 import sys
 import shutil
 import argparse
 import logging
+import warnings
 from datetime import datetime
+
 import numpy as np
+import scipy.ndimage as nd
 from astropy import units as u
+from astropy.wcs import FITSFixedWarning
 import ccdproc
 from ccdproc import CCDData, ImageFileCollection, combine
 
@@ -58,6 +63,8 @@ parser.add_argument('--reprocess-data', action='store_true',
                     help='Reprocess data files.')
 parser.add_argument('--reprocess-all', action='store_true',
                     help='Recreate bias, flat, and all data files.')
+parser.add_argument('--verbose', '-v', action='store_true',
+                    help='make logging more verbose')
 
 args = parser.parse_args()
 
@@ -73,20 +80,25 @@ logger.setLevel(logging.DEBUG)
 # ipython
 if len(logger.handlers) == 0:
     formatter = logging.Formatter('%(levelname)s: %(message)s')
+    level = logging.DEBUG if args.verbose else logging.INFO
 
     console = logging.StreamHandler(sys.stdout)
-    console.setLevel(logging.DEBUG)
+    console.setLevel(level)
     console.setFormatter(formatter)
     logger.addHandler(console)
 
     logfile = logging.FileHandler('lmi-rx.log')
-    logfile.setLevel(logging.INFO)
+    logfile.setLevel(level)
     logfile.setFormatter(formatter)
     logger.addHandler(logfile)
 
 logger.info('#' * 70)
 logger.info(datetime.now().isoformat())
 logger.info('Command line: ' + ' '.join(sys.argv[1:]))
+
+######################################################################
+# suppress unnecessary warnings
+warnings.simplefilter('ignore', FITSFixedWarning)
 
 ######################################################################
 # copy files
@@ -149,12 +161,16 @@ for filt in filters:
     data_breakdown.append('{} {}'.format(
         len(ic.files_filtered(obstype='OBJECT', filters=filt)), filt))
 
-subframes = sorted(list(set(ic.summary['subarser'])))
-nsubframes = len(subframes)
-subframe_breakdown = []
-for i in subframes:
-    subframe_breakdown.append('{} subframe {}'.format(
-        len(ic.files_filtered(subarser=i)), i))
+readout_modes = sorted(
+    list(set([tuple(row) for row in ic.summary['subarser', 'ccdsum']])))
+subframes = list(set([rm[0] for rm in readout_modes]))
+binning_modes = list(set([rm[1] for rm in readout_modes]))
+
+readout_mode_breakdown = []
+for rm in readout_modes:
+    readout_mode_breakdown.append('{} subframe {}, {} binning'.format(
+        len(ic.files_filtered(subarser=rm[0], ccdsum=rm[1])),
+        rm[0], rm[1].replace(' ', 'x')))
 
 logger.info('''
   {} files:
@@ -163,51 +179,73 @@ logger.info('''
       {}
     {} object
       {}
-  {} subframes
+  {} readout modes
     {}
 '''.format(len(ic.files), nbias,
            nflat, '\n      '.join(flat_breakdown),
            ndata, '\n      '.join(data_breakdown),
-           nsubframes, '\n    '.join(subframe_breakdown)))
+           len(readout_modes), '\n    '.join(readout_mode_breakdown)))
+
+
+def readout_mode_to_string(readout_mode):
+    return 'subframe {}, {} binning'.format(
+        readout_mode[0],
+        readout_mode[1].replace(' ', 'x')
+    )
+
+
+def readout_mode_to_suffix(readout_mode):
+    return '{}_{}'.format(
+        readout_mode[0],
+        readout_mode[1].replace(' ', 'x')
+    )
+
 
 ######################################################################
 # bias subtract
 bias = dict()
 logger.info('Bias frames.')
-for subframe in subframes:
-    fn = '{}/bias{}.fits'.format(args.target, subframe)
+for readout_mode in readout_modes:
+    fn = '{}/bias{}.fits'.format(
+        args.target, readout_mode_to_suffix(readout_mode))
     if os.path.exists(fn) and not args.reprocess_all:
-        logger.info('  Read subframe = {}.'.format(subframe))
-        bias[subframe] = CCDData.read(fn)
+        logger.info('  Read bias = {}.'.format(fn))
+        bias[readout_mode] = CCDData.read(fn)
     elif nbias == 0:
         logger.warning(
-            '  No bias files provided and {} not found.  Not subtracting bias for subframe == {}.'.format(fn, subframe))
-        bias[subframe] = 0 * u.adu
+            ('  No bias files provided and {} not found.'
+             '  Not subtracting biases for {}.')
+            .format(fn, readout_mode_to_string(readout_mode)))
+        bias[readout_mode] = 0 * u.adu
     else:
-        logger.info('  Create subframe = {}.'.format(subframe))
-        files = ic.files_filtered(obstype='BIAS', subarser=subframe)
+        logger.info('  Create bias = {}.'.format(
+            readout_mode_to_string(readout_mode)))
+        files = ic.files_filtered(
+            obstype='BIAS', subarser=readout_mode[0], ccdsum=readout_mode[1])
         files = [os.sep.join([ic.location, f]) for f in files]
-        bias[subframe] = combine(files, method='average',
-                                 clip_extrema=True, nlow=1, nhigh=1)
-        bias[subframe].meta['FILENAME'] = os.path.split(fn)[1]
+        bias[readout_mode] = combine(files, method='average',
+                                     clip_extrema=True, nlow=1, nhigh=1)
+        bias[readout_mode].meta['FILENAME'] = os.path.split(fn)[1]
 
         n = str([int(f.split('_')[2]) for f in files])
-        bias[subframe].meta.add_history(
+        bias[readout_mode].meta.add_history(
             'Created from file numbers: {}'.format(n))
 
-        bias[subframe].write(fn, overwrite=True)
+        bias[readout_mode].write(fn, overwrite=True)
 
-for subframe in subframes:
+for readout_mode in readout_modes:
     logger.info('Bias subtract and trim data.')
-    i = (ic.summary['subarser'] == subframe) & ic.summary['subbias'].mask
-    logger.info('  {} files to bias subtract for subframe {}'.format(
-        sum(i), subframe))
+    i = ((ic.summary['subarser'] == readout_mode[0])
+         * (ic.summary['ccdsum'] == readout_mode[1])
+         * ic.summary['subbias'].mask)
+    logger.info('  {} files to bias subtract for {}'.format(
+        sum(i), readout_mode_to_string(readout_mode)))
     for fn in ic.summary['file'][i]:
         ccd = ccdproc.fits_ccddata_reader(os.sep.join([ic.location, fn]))
         logger.debug(fn)
 
-        ccd = ccdproc.subtract_bias(ccd, bias[subframe])
-        ccd.meta['BIASFILE'] = (bias[subframe].meta['FILENAME'],
+        ccd = ccdproc.subtract_bias(ccd, bias[readout_mode])
+        ccd.meta['BIASFILE'] = (bias[readout_mode].meta['FILENAME'],
                                 'Name of the bias frame used.')
         biassec = translate_slice(ccd.meta['BIASSEC'])[1]
         ccd = ccdproc.subtract_overscan(ccd, ccd[:, biassec])
@@ -227,7 +265,7 @@ def style2key(style):
     """Generate a flat field key based on FITS keywords.
 
     filter
-    Binning key: 2x2 for 2x2 binning
+    binning key: 2x2 for 2x2 binning
     NIHTS dichroic key: +D for dichroic in.
 
     """
@@ -261,6 +299,43 @@ def needed_flat_styles(ic):
                    'FMDSTAT': style[2]}
 
 
+def streak_mask(im):
+    """Generate mask for streaks in the flat.
+
+    Assumes they are horizontal and the image has been flat corrected.
+
+    """
+
+    det = im / nd.grey_opening(im, 31)
+    good = np.isfinite(det)
+    det = (det - np.median(det[good])) > (np.std(det[good]) * 2)
+    # grow the detection map to merge pixels from faint streaks
+    det = nd.binary_closing(det, [[1, 1, 1, 1, 1]], iterations=2)
+    # remove isolated pixels from the mask
+    det = nd.binary_erosion(det, iterations=2)
+    # grow the size of the streak mask
+    det = nd.binary_dilation(det, [[1, 1, 1, 1, 1]], iterations=5)
+    det = nd.binary_dilation(det, iterations=5)
+    return det
+
+
+def generate_flat(files, iterations=2):
+    """Generate a flat field, iteratively rejecting star streaks.
+
+    """
+
+    for iteration in range(iterations):
+        data = [ccdproc.fits_ccddata_reader(fn) for fn in files]
+        if iteration != 0:
+            for i in range(len(data)):
+                im = ccdproc.flat_correct(data[i], flat)
+                data[i].mask = streak_mask(im.data)
+
+        flat = combine(data, method='median', scale=mode_scaler)
+
+    return flat
+
+
 logger.info('Flat fields.')
 flats = {}
 for style in needed_flat_styles(ic):
@@ -276,7 +351,8 @@ for style in needed_flat_styles(ic):
             flats[k] = CCDData.read(fn)
         elif len(ic.files_filtered(obstype=flat_key, **style)) == 0:
             logger.warning(
-                'No {} files provided for {} and {} not found.'.format(flat_key, filt, fn))
+                'No {} files provided for {} and {} not found.'.format(
+                    flat_key, style['FILTERS'], fn))
         else:
             logger.info('  Generating {}.'.format(fn))
             files = ic.files_filtered(obstype=flat_key, subarser=0, **style)
@@ -285,8 +361,7 @@ for style in needed_flat_styles(ic):
                 logger.warning('No files to combine for {}.'.format(k))
                 continue
 
-            flat = combine(files, method='median', scale=mode_scaler)
-
+            flat = generate_flat(files)
             flat.mask = (flat.data > 1.2) + (flat.data < 0.8)
 
             n = str([int(f.split('_')[2]) for f in files])
