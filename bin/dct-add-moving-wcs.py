@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import re
 import argparse
+import warnings
 import numpy as np
-from astropy.wcs import WCS
+from astropy.wcs import WCS, FITSFixedWarning
 from astropy.io import fits
 from astroquery.simbad import Simbad
 import astropy.coordinates as coords
@@ -15,6 +16,11 @@ comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
              '|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?))')
 aster_pat = ('^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)'
              '|(\(([1-9][0-9]*)\)))')
+
+######################################################################
+# suppress unnecessary warnings
+warnings.simplefilter('ignore', FITSFixedWarning)
+######################################################################
 
 parser = argparse.ArgumentParser(
     description='Add a WCS centered on a moving target.')
