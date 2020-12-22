@@ -7,10 +7,12 @@ import argparse
 from glob import glob
 from datetime import datetime
 
+
 class Config:
     file_template = 'lmi_[0-9]{8}_[0-9]{4}_ppp.fits'
     comet_pat = '([0-9]*[CPDX])(-[A-Z]+)?/(([12][0-9]{3} [A-Z]+[0-9]+) \((.*)\)|(.*))'
     asteroid_pat = '(\(([0-9]+)\) (.*))|([12][0-9]{3} [A-Za-z]+[0-9]+)'
+
 
 def file_filter(source):
     """Returns a function that tests the file name.
@@ -29,8 +31,9 @@ def file_filter(source):
         if re.fullmatch(pat, fn) is None:
             return False
         return True
-    
+
     return f
+
 
 def summarize(files):
     from astropy.io import fits
@@ -47,6 +50,7 @@ def summarize(files):
                          ra.hourangle, dec.degree, h['filters']))
 
     return summary
+
 
 def object2field(obj):
     if re.match(Config.comet_pat, row['object']) is not None:
@@ -69,10 +73,13 @@ def object2field(obj):
                 field = field.replace(s, '')
     return field
 
+
 ######################################################################
-parser = argparse.ArgumentParser(description='Sort files into field/filter directories.')
-parser.add_argument('source', help='Name of the source directory.')
-parser.add_argument('--target', default='sorted', help='Name of the target directory. [default: sorted]')
+parser = argparse.ArgumentParser(
+    description='Sort files into field/filter directories.')
+parser.add_argument('source', help='name of the source directory')
+parser.add_argument('--target', default='sorted',
+                    help='name of the target directory [default: sorted]')
 
 args = parser.parse_args()
 
@@ -131,10 +138,12 @@ for row in summary[i]:
     src = row['file']
     if os.path.exists(dest):
         if not os.path.samefile(dest, src):
-            logger.warning('Found file {}, but it is not a hard link of {}.  Skipping.'.format(dest, src))
+            logger.warning(
+                'Found file {}, but it is not a link of {}.  Skipping.'.format(dest, src))
         exists += 1
     else:
-        os.link(src, dest)
+        # all files are sorted/object/filter so add a few dots
+        os.symlink(os.path.join('..', '..', '..', src), dest)
         logger.debug('Linked: {}'.format(dest))
         linked += 1
 
