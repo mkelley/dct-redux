@@ -166,8 +166,12 @@ readout_modes = sorted(
 subframes = list(set([rm[0] for rm in readout_modes]))
 binning_modes = list(set([rm[1] for rm in readout_modes]))
 
+nbias_by_readout_mode = {}
 readout_mode_breakdown = []
 for rm in readout_modes:
+    nbias_by_readout_mode[rm] = len(
+        ic.files_filtered(subarser=rm[0], ccdsum=rm[1], obstype='BIAS')
+    )
     readout_mode_breakdown.append('{} subframe {}, {} binning'.format(
         len(ic.files_filtered(subarser=rm[0], ccdsum=rm[1])),
         rm[0], rm[1].replace(' ', 'x')))
@@ -211,7 +215,7 @@ for readout_mode in readout_modes:
     if os.path.exists(fn) and not args.reprocess_all:
         logger.info('  Read bias = {}.'.format(fn))
         bias[readout_mode] = CCDData.read(fn)
-    elif nbias == 0:
+    elif nbias_by_readout_mode[readout_mode] == 0:
         logger.warning(
             ('  No bias files provided and {} not found.'
              '  Not subtracting biases for {}.')
