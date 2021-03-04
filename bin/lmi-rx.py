@@ -220,7 +220,7 @@ for readout_mode in readout_modes:
             ('  No bias files provided and {} not found.'
              '  Not subtracting biases for {}.')
             .format(fn, readout_mode_to_string(readout_mode)))
-        bias[readout_mode] = 0 * u.adu
+        bias[readout_mode] = None
     else:
         logger.info('  Create bias = {}.'.format(
             readout_mode_to_string(readout_mode)))
@@ -238,7 +238,9 @@ for readout_mode in readout_modes:
         bias[readout_mode].write(fn, overwrite=True)
 
 for readout_mode in readout_modes:
-    logger.info('Bias subtract and trim data.')
+    if bias[readout_mode] is None:
+        continue
+    logger.info(f'Bias subtract and trim data for {readout_mode}.')
     i = ((ic.summary['subarser'] == readout_mode[0])
          * (ic.summary['ccdsum'] == readout_mode[1])
          * ic.summary['subbias'].mask)
@@ -384,6 +386,9 @@ i = (ic.summary['obstype'] !=
 logger.info('  {} files to flat correct.'.format(sum(i)))
 for fn in ic.summary['file'][i]:
     ccd = ccdproc.fits_ccddata_reader(os.sep.join([ic.location, fn]))
+    if ccd.meta.get('BIASFILE') is None:
+        # do not process files that haven't been bias subtracted.
+        continue
 
     flatkey = style2key(ccd.meta)
     if flats[flatkey] == 1:
