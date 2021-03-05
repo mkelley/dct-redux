@@ -77,7 +77,7 @@ for i in range(len(eph)):
 c = coords.concatenate(c)
 i = t.argmin()
 for j, f in enumerate(files):
-    hdu = fits.open(os.path.realpath(f), mode='readonly')
+    hdu = fits.open(os.path.realpath(f), mode='update')
 
     w0 = WCS(hdu[0].header)
 
@@ -95,5 +95,4 @@ for j, f in enumerate(files):
     else:
         hdu[0].header.add_history(s)
 
-    hdu.writeto(f, overwrite=True)
     hdu.close()
