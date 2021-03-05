@@ -1,4 +1,4 @@
-# dct-redux v0.3.0
+# dct-redux v0.4.0
 Python scripts for reducing DCT data, mostly focused on comet data.
 
 ## Status
@@ -8,9 +8,12 @@ The scripts for early steps in the reduction, e.g., file name normalization and 
 * Python 3
 * astropy
 * ccdproc
+* sep
 * DS9
 * pyds9
 * astroquery
+* sbpy
+* calviacat
 * mskpy
 
 For file name normalization and FITS header fixing, just `astropy` is needed.
@@ -43,7 +46,7 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
    lmi-rx.py all.list
    ```
 
-1. Add world coordinates:
+1. Add world coordinates: (**LMI's nominal WCS is fairly good now.  May not be necessary anymore?**)
 
 	```bash
 	mkdir wcs
@@ -52,12 +55,12 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
 	cd ..
 	```
 	   
-1. Create a hierarchical path structure with the data sorted by target and filter.  This does not copy the data, but makes hard links to the `ppp/` directory.
+1. Create a hierarchical path structure with the data sorted by target and filter.  This does not copy the data, but makes symbolic links to the `ppp/` directory.
    ```bash
    lmi-sort.py ppp
    ```
    
-1. Add world coordinate system centered on moving targets:
+1. Add world coordinate system centered on moving targets ephemeris:
 
 	```bash
 	dct-add-moving-wcs.py sorted/target/*/*
@@ -67,28 +70,37 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
 
 	```bash
 	dct-add-moving-wcs.py sorted/target/*/*
-	
-	# Propagate changes back to ppp directory and regenerate sorted (need a better way to do this!)
-	\cp sorted/*/*/*fits ppp/
-	rm -rf sorted/
-	lmi-sort.py ppp
 	```
 
 1. Copy world coordinate system for frames without solutions, e.g.,:
 
 	```bash
-	
+	...
 	```
 
-1. Add photometry catalog (experimental):
+1. Add photometry catalog:
 
 	```bash
 	lmi-add-cat.py ppp/lmi*fits
 	```
 
+1. Calibrate it:
+
+   ```bash
+   mkdir phot
+   cd phot
+   lmi-calibrate-catalog.py ../ppp/lmi*fits --plot
+   ```
+
+   Default is to calibrate g', r', i', z', VR, BC, RC to the RefCat2 photometric catalog (Tonry et al. 2018).  BC, RC, and VR are calibrated to g, r, and r, respectively.  To limit the filters:
+
+   ```
+   lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --filter=SDSS-R --filter=VR
+   ```
 
 
 
+## Old stuff
 1. Center on targets or stars by hand.  Uses script from `mskpy`:
    ```bash
    center-target ppp/*fits
