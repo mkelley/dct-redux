@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import re
 import argparse
 import warnings
@@ -9,7 +10,8 @@ from astroquery.simbad import Simbad
 import astropy.coordinates as coords
 from astropy.coordinates import SkyCoord
 import astropy.units as u
-from astroquery.jplhorizons import Horizons
+#from astroquery.jplhorizons import Horizons
+from sbpy.data import Ephem
 import mskpy
 
 comet_pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
@@ -27,6 +29,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('file', nargs='+', help='FITS images to update.')
 parser.add_argument('--observatory', default='G37',
                     help='Observatory location (for HORIZONS).')
+parser.add_argument('--source', choices=['jpl', 'mpc'], default='jpl',
+                    help='ephemeris source')
 
 args = parser.parse_args()
 files = sorted(args.file)
@@ -52,22 +56,28 @@ target = m[0][0]
 
 c = []
 print(obj)
-for i in range(len(t)):
-    q = Horizons(id=target, id_type='designation', epochs=t.jd[i],
-                 location='G37')
+
+if args.source == 'jpl':
     if comet_match:
         opts = dict(closest_apparition=True, no_fragments=True)
     else:
         opts = {}
-    eph = q.ephemerides(**opts)
-    _c = SkyCoord(eph['RA'], eph['DEC'], unit=u.deg)
+    eph = Ephem.from_horizons(
+        target, id_type='designation', epochs=t, location='G37',
+        **opts
+    )
+elif args.source == 'mpc':
+    eph = Ephem.from_mpc(target, epochs=t, location='G37')
+
+for i in range(len(eph)):
+    _c = SkyCoord(eph[i]['RA'], eph[i]['DEC'], unit=u.deg)
     print('  ', t[i].iso, _c.to_string('hmsdms')[0])
     c.append(_c)
 
 c = coords.concatenate(c)
 i = t.argmin()
 for j, f in enumerate(files):
-    hdu = fits.open(f, mode='readonly')
+    hdu = fits.open(os.path.realpath(f), mode='readonly')
 
     w0 = WCS(hdu[0].header)
 
