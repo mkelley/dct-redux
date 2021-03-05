@@ -54,11 +54,12 @@ def summarize(files):
 
 def object2field(obj):
     if re.match(Config.comet_pat, row['object']) is not None:
-        m = re.findall(Config.comet_pat, row['object'])[0]
-        if m[0][0].isdecimal():
-            field = m[2].lower().replace(' ', '')
+        field = (row['object'].strip().lower().replace(' ', '')
+                 .replace('(', '_').replace(')', ''))
+        if field[0].isdigit():
+            field = field.replace('/', '_')
         else:
-            field = '{}{}'.format(m[0].lower(), m[3].lower().replace(' ', ''))
+            field = field.replace('/', '')
     elif re.match(Config.asteroid_pat, row['object']) is not None:
         m = re.findall(Config.asteroid_pat, row['object'])[0]
         if len(m[0]) == 0:
