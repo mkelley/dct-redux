@@ -46,6 +46,15 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
    lmi-rx.py all.list
    ```
 
+   Need to reuse a flat or bias from another night?  Make a symbolic link or copy the file to ppp/ and lmi-rx will find it.
+
+   ```bash
+   cd ppp
+   ln -s ../../20210113/ppp/bias1_3x3.fits
+   cd ..
+   lmi-rx.py all.list
+   ```
+
 1. Add world coordinates: (**LMI's nominal WCS is fairly good now.  May not be necessary anymore?**)
 
 	```bash
