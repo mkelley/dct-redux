@@ -163,8 +163,9 @@ for f in sorted(args.files):
 
         phot = Table(hdu['CAT'].data)
         w = WCS(hdu[0])
-        coords = SkyCoord(*w.pixel_to_world_values(list(zip(phot['x'], phot['y']))).T,
-                          unit='deg')
+        radec = np.array(w.pixel_to_world_values(
+            list(zip(phot['x'], phot['y']))))
+        coords = SkyCoord(*radec.T, unit='deg')
         m = -2.5 * np.log10(phot['krflux'] / exptime)
         merr = 1.0857 * phot['krfluxerr'] / phot['krflux']
 

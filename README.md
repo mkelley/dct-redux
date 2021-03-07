@@ -107,6 +107,15 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
    lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --filter=SDSS-R --filter=VR
    ```
 
+1. Find standards, measure, and calibrate:
+
+   ```bash
+   # in the phot directory:
+   lmi-standard-phot.py ../ppp/lmi*fits
+   lmi-standard-calibration.py
+   ```
+
+   For more advanced calibration, consider making a copy of lmi-standard-calibration.py and editing to suit your needs.
 
 
 ## Old stuff
