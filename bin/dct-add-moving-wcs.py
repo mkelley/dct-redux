@@ -26,19 +26,18 @@ warnings.simplefilter('ignore', FITSFixedWarning)
 
 parser = argparse.ArgumentParser(
     description='Add a WCS centered on a moving target.')
-parser.add_argument('file', nargs='+', help='FITS images to update.')
+parser.add_argument('files', nargs='+', help='FITS images to update.')
 parser.add_argument('--observatory', default='G37',
                     help='Observatory location (for HORIZONS).')
 parser.add_argument('--source', choices=['jpl', 'mpc'], default='jpl',
                     help='ephemeris source')
 
 args = parser.parse_args()
-files = sorted(args.file)
 
 # first pass to get target and dates
 objects = []
 dates = []
-for f in files:
+for f in args.files:
     hdu = fits.open(f, mode='readonly')
     objects.append(hdu[0].header['OBJECT'])
     dates.append(hdu[0].header['DATE-OBS'])
@@ -46,6 +45,10 @@ for f in files:
 obj = np.unique(objects)
 assert len(obj) == 1, "Multiple objects found: {}".format(obj)
 t = mskpy.date2time(dates)
+
+# put files in time order
+files = [args.files[i] for i in np.argsort(t)]
+t = t[np.argsort(t)]
 
 obj = obj[0]
 comet_match = re.findall(comet_pat, obj)
@@ -69,13 +72,13 @@ if args.source == 'jpl':
 elif args.source == 'mpc':
     eph = Ephem.from_mpc(target, epochs=t, location='G37')
 
-for i in range(len(eph)):
-    _c = SkyCoord(eph[i]['RA'], eph[i]['DEC'], unit=u.deg)
-    print('  ', t[i].iso, _c.to_string('hmsdms')[0])
+for j in range(len(eph)):
+    _c = SkyCoord(eph[j]['RA'], eph[j]['DEC'], unit=u.deg)
+    print('  ', t[j].iso, _c.to_string('hmsdms')[0])
     c.append(_c)
 
 c = coords.concatenate(c)
-i = t.argmin()
+k = t.argmin()
 for j, f in enumerate(files):
     hdu = fits.open(os.path.realpath(f), mode='update')
 
@@ -83,9 +86,9 @@ for j, f in enumerate(files):
 
     w = WCS(naxis=2)
     w.wcs.crpix = w0.wcs_world2pix(c[j].ra, c[j].dec, 1)
-    w.wcs.crval = (c[i].ra.deg, c[i].dec.deg)
-    w.wcs.cd = np.array([[-1, 0], [0, 1]]) * 0.24 / 3600
-    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    w.wcs.crval = (c[k].ra.deg, c[k].dec.deg)
+    w.wcs.cd = w0.wcs.cd
+    w.wcs.ctype = w0.wcs.ctype
     hdu[0].header.update(w.to_header(key='M'))
 
     s = 'Added moving target WCS (key M).'
