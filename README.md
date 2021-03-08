@@ -111,43 +111,9 @@ For file name normalization and FITS header fixing, just `astropy` is needed.
 
    ```bash
    # in the phot directory:
-   lmi-standard-phot.py ../ppp/lmi*fits
-   lmi-standard-calibration.py
+   lmi-standard-phot.py ../ppp/lmi*fits -o standard-phot.txt
+   lmi-standard-calibration.py standard-phot.txt
    ```
 
-   For more advanced calibration, consider making a copy of lmi-standard-calibration.py and editing to suit your needs.
+   For more advanced calibration, consider copying and editing the standard-phot.txt file to suit your needs.
 
-
-## Old stuff
-1. Center on targets or stars by hand.  Uses script from `mskpy`:
-   ```bash
-   center-target ppp/*fits
-   ```
-
-1. Update WCS, all files.  Targets coordinates are grabbed from SIMBAD or HORIZONS, as needed.
-   ```bash
-   lmi-update-wcs.py ppp/*.fits
-   ```
-
-1. Update WCS for those images that were not aligned on the target, or the target name is not found in SIMBAD:
-   ```bash
-   cd sorted
-   lmi-update-wcs.py --celestial=197.230094,45.588819 c2013a1/*/*fits
-   lmi-update-wcs.py --celestial=204.52143223,-8.85685162 giacobini-zinner/SDSS-R/*fits
-   lmi-update-wcs.py --celestial=232.66475833,6.02027222 pg*/*/*fits
-   ```
-
-1. Add moving target WCS (WCS key "m"):
-   ```bash
-   for d in c2013a1 c2013x1 c2014s2 c2015v2 churyumov-gerasimenko clark finlay giacobini-zinner linear12 tempel1; do
-     (cd $d; dct-add-moving-wcs.py */*fits)
-   done
-   ```
-   
-1. Standard star photometry:
-
-	```bash
-	lmi-standard-phot.py ../ppp/lmi*fits
-	```
-
-More later.

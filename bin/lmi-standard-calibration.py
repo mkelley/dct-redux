@@ -1,12 +1,27 @@
+#!/usr/bin/env python3
+import os
+import sys
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
 from astropy.io import ascii
-import mskpy
-from mskpy import photometry, hms2dh, dh2hms, niceplot
+from mskpy import photometry, hms2dh, niceplot
 from mskpy.photometry import hb
 
-phot = ascii.read('standard-phot.txt', format='fixed_width_two_line')
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    'phot',
+    help='calibrate this table of standard star photometry (output from lmi-standard-phot.py)')
+parser.add_argument(
+    '-o', '--outfile',
+    help=('save to this file, otherwise the file name will be based on the'
+          ' input file name'))
+args = parser.parse_args()
+
+basename = os.path.splitext(os.path.basename(args.phot))[0]
+
+phot = ascii.read(args.phot, format='fixed_width_two_line')
 phot = phot[np.isfinite(phot['m_inst'] * phot['m_inst_err'])]
 phot.sort('date')
 
@@ -45,7 +60,10 @@ good_times = True
 
 good = good_sources * good_times
 
-outf = open('cal-phot.txt', 'w')
+if args.outfile is None:
+    outf = sys.stdout
+else:
+    outf = open(args.outfile, 'w')
 
 #
 
@@ -123,8 +141,8 @@ Residuals
 """.format(A['OH'][0], A_unc['OH'][0], A['OH'][1], A_unc['OH'][1], len(res),
            np.mean(res), np.std(res), np.std(res) / np.sqrt(len(res))))
 
-outf.close()
-print(open('cal-phot.txt', 'r').read(-1))
+if args.outfile is not None:
+    outf.close()
 
 
 #
@@ -157,7 +175,7 @@ for filt, pset in filters.items():
 plt.setp(plt.gca(), xlabel=r'Airmass', ylabel=r'$\Delta m + E(X)$ (mag)')
 niceplot(lw=1, mew=0.5, ms=5)
 plt.draw()
-plt.savefig('cal-phot-extinction.pdf')
+plt.savefig(f'cal-{basename}-extinction.pdf')
 
 if len(color_correct) > 0:
     fig = plt.figure(2)
@@ -182,7 +200,7 @@ if len(color_correct) > 0:
                  va='center')
         plt.setp(plt.gca(), xlabel='Airmass',
                  ylabel=r"$\Delta m + C (g'-r')$ (mag)")
-    plt.savefig('cal-phot-colorcor.pdf')
+    plt.savefig(f'cal-{basename}-colorcor.pdf')
 
 if 'OH' in A:
     i = good * filters['OH']
@@ -203,4 +221,4 @@ if 'OH' in A:
     plt.plot(x, A['OH'][0] - ext_oh, 'k-')
     plt.setp(plt.gca(), xlabel='Apparent Airmass',
              ylabel=r'$\Delta OH + E(X)$ (mag)')
-    plt.savefig('cal-phot-oh.pdf')
+    plt.savefig(f'cal-{basename}-oh.pdf')
