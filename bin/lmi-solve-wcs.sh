@@ -11,7 +11,7 @@ for f in $* ; do
 		binning=`gethead CCDSUM $f|awk '{print $1}'`
 		scalelow=`python -c "$binning * 0.12 - 0.01" | tr -d '[:space:]'`
 		scalehigh=`python -c "$binning * 0.12 + 0.01" | tr -d '[:space:]'`
-		solve-field --no-verify --use-sextractor --skip-solved --scale-low=$scalelow --scale-high=$scalehigh --scale-units=arcsecperpix -t2 --radius=0.5 --ra=$ra --dec=$dec $g --depth=50
+		solve-field --no-verify --use-sextractor --skip-solved --scale-low=$scalelow --scale-high=$scalehigh --scale-units=arcsecperpix -t0 --radius=0.5 --ra=$ra --dec=$dec $g --depth=50
 		if [ -e ${g%.fits}.solved ]; then
 			#cphead ${g%.fits}.wcs $f
 			python3 <<EOF
