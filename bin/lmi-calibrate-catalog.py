@@ -13,6 +13,7 @@ from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
 
 from calviacat import RefCat2
+from calviacat.catalog import CalibrationError
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -139,16 +140,21 @@ for f in args.files:
 
     cal_args = (objids, m_inst, filt)
     cal_kwargs = dict(mlim=[14, 19], gmi_lim=[0.2, 3.0])
-    if args.no_color_correction:
-        C = None
-        zp, zp_unc, m, gmr, gmi = refcat2.cal_constant(
-            *cal_args, **cal_kwargs
-        )
-    else:
-        zp, C, zp_unc, m, gmr, gmi = refcat2.cal_color(
-            *cal_args, 'g-r', C=-0.008, **cal_kwargs)
+    try:
+        if args.no_color_correction:
+            C = None
+            zp, zp_unc, m, gmr, gmi = refcat2.cal_constant(
+                *cal_args, **cal_kwargs
+            )
+        else:
+            zp, C, zp_unc, m, gmr, gmi = refcat2.cal_color(
+                *cal_args, 'g-r', C=-0.008, **cal_kwargs)
+    except CalibrationError:
+        continue
+    finally:
+        refcat2.db.close()
+
     n_cal = (~m.mask).sum()
-    refcat2.db.close()
 
     logger.info('Calibrated with %d sources: zp=%.3f C=%s unc=%.3f',
                 n_cal, zp, 'None' if C is None else '{:.3f}'.format(C),
