@@ -17,6 +17,10 @@ parser.add_argument(
     '-o', '--outfile',
     help=('save to this file, otherwise the file name will be based on the'
           ' input file name'))
+parser.add_argument(
+    '--no-airmass-correction', action='store_true',
+    help='do not solve for extinction dependence on airmass'
+)
 args = parser.parse_args()
 
 basename = os.path.splitext(os.path.basename(args.phot))[0]
@@ -61,7 +65,8 @@ good_times = True
 good = good_sources * good_times
 
 if args.outfile is None:
-    outf = sys.stdout
+    outf = open(
+        f'cal-{os.path.splitext(os.path.basename(args.phot))[0]}.txt', 'w')
 else:
     outf = open(args.outfile, 'w')
 
@@ -73,34 +78,63 @@ for filt, pset in filters.items():
         continue
 
     if filt == 'OH':
+        # OH gets a different treatment
         continue
+
     m_inst = phot['m_inst'][good * pset]
     m_inst_unc = phot['m_inst_err'][good * pset]
     M = phot['m'][good * pset]
     x = X[good * pset]
     color = phot['color'][good * pset]
+
+    # indices for airmass and color correction
+    ai = None
+    ci = None
     if filt in color_correct:
-        A[filt], A_unc[filt] = photometry.cal_color_airmass(
-            m_inst, m_inst_unc, M, color, x)
-        m = (M - A[filt][0] + A[filt][1] * x + A[filt][2] * color).data
-        res = (m - m_inst).data
+        if args.no_airmass_correction:
+            A[filt], A_unc[filt] = photometry.cal_color(
+                m_inst, m_inst_unc, M, color)
+            m = (M - A[filt][0] + A[filt][1] * color).data
+            res = (m - m_inst).data
+            ci = 1
+        else:
+            A[filt], A_unc[filt] = photometry.cal_color_airmass(
+                m_inst, m_inst_unc, M, color, x)
+            m = (M - A[filt][0] + A[filt][1] * x + A[filt][2] * color).data
+            res = (m - m_inst).data
+            ai = 1
+            ci = 2
     else:
-        A[filt], A_unc[filt] = photometry.cal_airmass(
-            m_inst, m_inst_unc, M, x)
-        m = (M - A[filt][0] + A[filt][1] * x).data
-        res = (m - m_inst).data
+        if args.no_airmass_correction:
+            wm, sw = np.average(M - m_inst, weights=m_inst_unc**-2,
+                                returned=True)
+            A[filt] = [wm]
+            A_unc[filt] = [sw**-0.5]
+            m = (M - A[filt][0]).data
+            res = (m - m_inst).data
+        else:
+            A[filt], A_unc[filt] = photometry.cal_airmass(
+                m_inst, m_inst_unc, M, x)
+            m = (M - A[filt][0] + A[filt][1] * x).data
+            res = (m - m_inst).data
+            ai = 1
 
     outf.write("""
 {} calibration
 {}------------
 """.format(filt, '-' * len(filt)))
+
     outf.write("""
 zp = {:9.4f} +/- {:9.4f}  magnitude zeropoint [mag]
 Ex = {:9.4g} +/- {:9.4g}  airmass extinction  [mag/airmass]
-""".format(A[filt][0], A_unc[filt][0], A[filt][1], A_unc[filt][1]))
-    if filt in color_correct:
-        outf.write(
-            "C  = {:9.4f} +/- {:9.4f}  color correction    [mag/color index]\n".format(A[filt][2], A_unc[filt][2]))
+C  = {:9.4f} +/- {:9.4f}  color correction    [mag/color index]
+""".format(
+        A[filt][0], A_unc[filt][0],
+        0 if ai is None else A[filt][ai],
+        0 if ai is None else A_unc[filt][ai],
+        0 if ci is None else A[filt][ci],
+        0 if ci is None else A_unc[filt][ci],
+    ))
 
     outf.write("""
 Residuals
@@ -113,8 +147,7 @@ Residuals
            np.std(res),
            np.std(res) / np.sqrt(len(res))))
 
-if 'OH' in filters:
-    assert 'BC' in A, 'OH requires BC calibration'
+if sum(filters['OH']) > 0 and sum(filters['BC']) > 0 and not args.no_airmass_correction:
     i = good * filters['OH']
     m_inst = phot['m_inst'][i].data
     m_inst_unc = phot['m_inst_err'][i].data
@@ -152,14 +185,14 @@ mcolor = plt.cm.rainbow(np.linspace(0, 1, len(phot)))
 fig = plt.figure(1)
 fig.clear()
 plt.minorticks_on()
-am = np.linspace(1.0, 4)
+am = np.linspace(1.0, X.max() + 0.2)
 for filt, pset in filters.items():
     if filt == 'OH' or filt not in A:
         continue
     i = good * pset
     bad = ~good * pset
     if filt in color_correct:
-        y = dm + A[filt][2] * phot['color']
+        y = dm + A[filt][ci] * phot['color']
     else:
         y = dm
 
@@ -168,9 +201,14 @@ for filt, pset in filters.items():
         plt.scatter(X[bad], y[bad], color=mcolor[bad], marker='x', alpha=0.5)
 
     plt.errorbar(X[i], y[i], dm_unc[i], color=(0, 0, 0, 0), ecolor='k')
-    plt.plot(am, A[filt][0] - A[filt][1] * am, 'k-')
-    plt.text(1.0, A[filt][0] - A[filt][1], filt + ' ', ha='right',
-             va='center')
+    if ai is None:
+        plt.axhline(A[filt][0], color='k')
+        plt.text(1.0, A[filt][0], filt + '\n', ha='left',
+                 va='center')
+    else:
+        plt.plot(am, A[filt][0] - A[filt][ai] * am, 'k-')
+        plt.text(1.0, A[filt][0] - A[filt][ai], filt + ' ', ha='left',
+                 va='center')
 
 plt.setp(plt.gca(), xlabel=r'Airmass', ylabel=r'$\Delta m + E(X)$ (mag)')
 niceplot(lw=1, mew=0.5, ms=5)
@@ -186,7 +224,9 @@ if len(color_correct) > 0:
         if filt not in A:
             continue
 
-        y = dm - A[filt][0] + A[filt][1] * X
+        y = dm - A[filt][0]
+        if ai is not None:
+            y += A[filt][ai] * X
         i = good * filters[filt]
         bad = ~good * filters[filt]
         plt.scatter(phot['color'][i], y[i], color=mcolor[i], alpha=0.5)
@@ -196,10 +236,11 @@ if len(color_correct) > 0:
         plt.errorbar(phot['color'][i], y[i], dm_unc[i], color=(0, 0, 0, 0),
                      ecolor='0.5')
         plt.plot(ci, -A[filt][2] * ci, 'k-')
-        plt.text(ci[0], -A[filt][2] * ci[0], filt + ' ', ha='right',
+        plt.text(ci[0], -A[filt][2] * ci[0], filt + ' ', ha='left',
                  va='center')
-        plt.setp(plt.gca(), xlabel='Airmass',
-                 ylabel=r"$\Delta m + C (g'-r')$ (mag)")
+    plt.setp(plt.gca(), xlabel="g'-r' (mag)",
+             ylabel=r"$\Delta m + C (g'-r')$ (mag)")
+    plt.tight_layout()
     plt.savefig(f'cal-{basename}-colorcor.pdf')
 
 if 'OH' in A:
