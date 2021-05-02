@@ -155,11 +155,12 @@ filters.sort()
 flat_breakdown = []
 data_breakdown = []
 for filt in filters:
+    filter_pattern = filt.replace('+', r'\+')  # ccdproc 2.1.1 workaround for CO+ filtera
     for k in args.flat_keys:
         flat_breakdown.append('{} {} {}'.format(
-            len(ic.files_filtered(obstype=k, filters=filt)), filt, k))
+            len(ic.files_filtered(obstype=k, filters=filter_pattern)), filt, k))
     data_breakdown.append('{} {}'.format(
-        len(ic.files_filtered(obstype='OBJECT', filters=filt)), filt))
+        len(ic.files_filtered(obstype='OBJECT', filters=filter_pattern)), filt))
 
 readout_modes = sorted(
     list(set([tuple(row) for row in ic.summary['subarser', 'ccdsum']])))
@@ -277,7 +278,7 @@ def style2key(style):
     """
 
     k = '{}-{}{}D'.format(
-        style['FILTERS'],
+        style['FILTERS'].replace(r'\+', '+'),  # workaround for ccdproc 2.1.1
         style['CCDSUM'].strip().replace(' ', 'x'),
         '+' if style['FMDSTAT'] == 'EXTENDED' else '-'
     )
@@ -300,7 +301,7 @@ def needed_flat_styles(ic):
         style = (obs['filters'], obs['ccdsum'], obs['fmdstat'])
         if style not in data_styles:
             data_styles.append(style)
-            yield {'FILTERS': style[0],
+            yield {'FILTERS': style[0].replace('+', r'\+'),
                    'CCDSUM': style[1],
                    'FMDSTAT': style[2]}
 
