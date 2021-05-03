@@ -87,7 +87,10 @@ for j, f in enumerate(files):
     w = WCS(naxis=2)
     w.wcs.crpix = w0.wcs_world2pix(c[j].ra, c[j].dec, 1)
     w.wcs.crval = (c[k].ra.deg, c[k].dec.deg)
-    w.wcs.cd = w0.wcs.cd
+    try:
+        w.wcs.cd = w0.wcs.cd
+    except AttributeError:
+        pass
     w.wcs.ctype = w0.wcs.ctype
     hdu[0].header.update(w.to_header(key='M'))
 
