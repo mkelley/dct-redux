@@ -29,11 +29,11 @@ parser.add_argument('-n', action='store_true',
                     help='No-operation mode: summarizes changes that would be made.')
 args = parser.parse_args()
 
-if not os.path.exists('originals'):
+if not os.path.exists('original-headers'):
     if args.n:
-        print('I would have created the originals directory to backup files.')
+        print('I would have created the original-headers directory to backup files.')
     else:
-        os.system('mkdir originals')
+        os.system('mkdir original-headers')
 
 if args.n:
     mode = 'readonly'
@@ -67,15 +67,15 @@ for row in ascii.read(args.fixesfile, format='csv', delimiter=',', fast_reader=F
         if not any(test):
             continue
         else:
-            backup = 'originals/{}'.format(fn)
+            backup = 'original-headers/{}'.format(fn).replace('.fits', '.header')
             if not os.path.exists(backup):
                 if args.n:
-                    print('I would have copied file to'
-                          ' a backup: {} -> {}'.format(fn, backup))
+                    print('I would have saved a backup header:'
+                          ' {} -> {}'.format(fn, backup))
                 else:
-                    print('Backup original FITS file: {} -> {}'.format(
+                    print('Backup original FITS header: {} -> {}'.format(
                         fn, backup))
-                    os.system('cp -f {} {}'.format(fn, backup))
+                    fits.getheader(fn).tofile(backup)
 
             if not args.n:
                 assert os.path.exists(backup)
