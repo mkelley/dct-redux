@@ -185,9 +185,12 @@ for f in sorted(args.files):
 
         logger.info('{}: {} standards found'.format(f, n))
 
-tab = Table(rows=rows, names=columns)
-tab.meta['comments'] = [Time.now().iso]
-for c, f in formats.items():
-    tab[c].format = f
+if len(rows) == 0:
+    logger.info('No standards found in any file.')
+else:
+    tab = Table(rows=rows, names=columns)
+    tab.meta['comments'] = [Time.now().iso]
+    for c, f in formats.items():
+        tab[c].format = f
 
-tab.write(args.o, format='ascii.fixed_width_two_line', overwrite=args.f)
+    tab.write(args.o, format='ascii.fixed_width_two_line', overwrite=args.f)

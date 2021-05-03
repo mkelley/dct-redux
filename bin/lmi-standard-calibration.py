@@ -25,7 +25,11 @@ args = parser.parse_args()
 
 basename = os.path.splitext(os.path.basename(args.phot))[0]
 
-phot = ascii.read(args.phot, format='fixed_width_two_line')
+try:
+    phot = ascii.read(args.phot, format='fixed_width_two_line')
+except FileNotFoundError:
+    print('File', args.phot, 'does not exist.')
+    sys.exit()
 phot = phot[np.isfinite(phot['m_inst'] * phot['m_inst_err'])]
 phot.sort('date')
 
