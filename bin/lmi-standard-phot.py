@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import logging
+from astropy.io.registry import identify_format
 
 import numpy as np
 from astropy.io import ascii, fits
@@ -24,9 +25,8 @@ parser.add_argument('--catalogs', default=os.path.expanduser('~/data/catalogs'),
                     help='directory holding the catalog files.')
 parser.add_argument('--dmax', type=u.Quantity, default='2 arcsec',
                     help='maximum distance for catalog matches')
-parser.add_argument('--hbdmax', type=u.Quantity, default='60 arcsec',
-                    help='maximum distance for HB catalog matches to allow for dithering'
-                    ' and poor WCS')
+parser.add_argument('--keep-all', action='store_true',
+                    help='when there are multiple matches, save all measurements, otherwise only save the brightest')
 parser.add_argument('--logfile', default='lmi-standard-phot.log')
 parser.add_argument('-o', default='standard-phot.txt',
                     help='output file name')
@@ -133,10 +133,11 @@ catalogs = {
 }
 
 columns = ['file', 'catalog', 'object', 'date', 'za', 'airmass', 'filter',
-           'color', 'm', 'm_err', 'm_inst', 'm_inst_err']
+           'color', 'dist', 'm', 'm_err', 'm_inst', 'm_inst_err']
 formats = {
     'airmass': '{:.4f}',
     'color': '{:.4f}',
+    'dist': '{:3f}',
     'm': '{:.4f}',
     'm_err': '{:.4f}',
     'm_inst': '{:.4f}',
@@ -152,7 +153,7 @@ for f in sorted(args.files):
             continue
 
         if 'CAT' not in hdu:
-            logger.info(f + ': missing phtometry catalog')
+            logger.info(f + ': missing photometry catalog')
             continue
 
         date = h['DATE-OBS'].replace('T', ' ')
@@ -162,6 +163,7 @@ for f in sorted(args.files):
         exptime = h['exptime']
 
         phot = Table(hdu['CAT'].data)
+        phot = phot[phot['krflux'] > 0]  # clean out bad data
         w = WCS(hdu[0])
         radec = np.array(w.pixel_to_world_values(
             list(zip(phot['x'], phot['y']))))
@@ -173,13 +175,18 @@ for f in sorted(args.files):
         for name, cat in catalogs.items():
             if filt not in cat:
                 continue
-            matches = coords.match_to_catalog_sky(cat['coords'])
-            dmax = args.hbdmax if name == 'Farnham et al. 2000' else args.dmax
-            for j, (i, dist, d3) in enumerate(zip(*matches)):
-                if dist < dmax:
-                    n += 1
+            indices, dist, d3 = coords.match_to_catalog_sky(cat['coords'])
+            i = dist < args.dmax
+            indices, dist, d3 = indices[i], dist[i], d3[i]
+            for i in set(indices):
+                n += 1
+                matches = np.flatnonzero((indices == i))
+                brightest = matches[m[matches].argmin()]
+                for j in matches:
+                    if not args.keep_all and j != brightest:
+                        continue
                     rows.append((f, name, cat['names'][i], date, za,
-                                 am, filt, cat['color'][i],
+                                 am, filt, cat['color'][i], dist[j].arcsec,
                                  cat[filt][i], cat[filt + '_err'][i],
                                  m[j], merr[j]))
 

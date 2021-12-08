@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import pdb
+from glob import glob
 import os
 import re
 import sys
@@ -15,6 +15,7 @@ from astropy import units as u
 from astropy.wcs import FITSFixedWarning
 import ccdproc
 from ccdproc import CCDData, ImageFileCollection, combine
+from astroscrappy import detect_cosmics
 
 
 class Config:
@@ -43,6 +44,22 @@ def subarray_slice(s, ccdsum):
     return np.s_[y0:y1, x0:x1]
 
 
+def readout_mode_to_string(readout_mode):
+    return 'subframe [{}:{},{}:{}], {} binning'.format(
+        readout_mode[0], readout_mode[1],
+        readout_mode[2], readout_mode[3],
+        readout_mode[4].replace(' ', 'x')
+    )
+
+
+def readout_mode_to_suffix(readout_mode):
+    return 'x{}to{}_y{}to{}_{}'.format(
+        readout_mode[0], readout_mode[1],
+        readout_mode[2], readout_mode[3],
+        readout_mode[4].replace(' ', 'x')
+    )
+
+
 class IntListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         v = [int(x) for x in values.split(',')]
@@ -53,16 +70,18 @@ parser = argparse.ArgumentParser(description='Generate partially processed LMI d
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument(
     'file_list', help='A list of files to process.  They must all have file names of the form: lmi_YYYYMMDD_NNNN_raw.fits.  Blank lines and lines beginning with # are ignored.')
+parser.add_argument(
+    '--night', help='night ID, default is the median date of the files (YYYYMMDD)')
 parser.add_argument('--target', default='ppp',
-                    help='Save processed files to this target directory.')
+                    help='save processed files to this target directory')
 parser.add_argument('--flat-keys', default='SKY FLAT,DOME FLAT', type=lambda s: s.split(','),
-                    help='Object type for flat fields, may be a comma-separated list.')
+                    help='object type for flat fields, may be a comma-separated list')
 parser.add_argument('--no-lacosmic', dest='lacosmic',
-                    action='store_false', help='Do not run L.A.Cosmic.')
+                    action='store_false', help='do not run L.A.Cosmic')
 parser.add_argument('--reprocess-data', action='store_true',
-                    help='Reprocess data files.')
+                    help='reprocess data files')
 parser.add_argument('--reprocess-all', action='store_true',
-                    help='Recreate bias, flat, and all data files.')
+                    help='recreate bias, flat, and all data files')
 parser.add_argument('--verbose', '-v', action='store_true',
                     help='make logging more verbose')
 
@@ -115,7 +134,7 @@ for fn in file_list:
     fn = fn.decode()
     if re.fullmatch(Config.file_template, os.path.split(fn)[1]) is None:
         logger.error(
-            '{} does not match template, lmi-YYYYMMDD-NNNN-raw.fits.'.format(fn))
+            '{} does not match template, lmi_YYYYMMDD_NNNN_raw.fits.'.format(fn))
         continue
 
     fn_new = os.path.split(fn)[1].replace('raw', 'ppp')
@@ -135,7 +154,8 @@ for fn in file_list:
 location = args.target
 keywords = ['obserno', 'object', 'obstype', 'date-obs', 'subarser',
             'ra', 'dec', 'airmass', 'filters', 'tempamb', 'humidity',
-            'subbias', 'flatcor', 'ccdsum', 'fmdstat']
+            'subbias', 'flatcor', 'ccdsum', 'fmdstat',
+            'AORGX_01', 'AENDX_01', 'AORGY_01', 'AENDY_01']
 ic = ImageFileCollection(location=location, filenames=files,
                          keywords=keywords)
 nbias = len(ic.files_filtered(obstype='BIAS'))
@@ -152,30 +172,44 @@ for h in ic.headers():
 
 filters.sort()
 
+if args.night is None:
+    # chose the median date to represent this file set
+    n = len(ic.summary) // 2
+    night = sorted([f.split('_')[1] for f in ic.summary['file']])[n]
+else:
+    night = args.night
+logger.info(f'Processing night: {night}')
+
 flat_breakdown = []
 data_breakdown = []
 for filt in filters:
-    filter_pattern = filt.replace('+', r'\+')  # ccdproc 2.1.1 workaround for CO+ filtera
+    # ccdproc 2.1.1 workaround for CO+ filtera
+    filter_pattern = filt.replace('+', r'\+')
     for k in args.flat_keys:
         flat_breakdown.append('{} {} {}'.format(
             len(ic.files_filtered(obstype=k, filters=filter_pattern)), filt, k))
     data_breakdown.append('{} {}'.format(
         len(ic.files_filtered(obstype='OBJECT', filters=filter_pattern)), filt))
 
-readout_modes = sorted(
-    list(set([tuple(row) for row in ic.summary['subarser', 'ccdsum']])))
+readout_modes = sorted(list(set(
+    [tuple(row) for row in
+     ic.summary['AORGX_01', 'AENDX_01', 'AORGY_01', 'AENDY_01', 'ccdsum']]
+)))
 subframes = list(set([rm[0] for rm in readout_modes]))
 binning_modes = list(set([rm[1] for rm in readout_modes]))
 
 nbias_by_readout_mode = {}
 readout_mode_breakdown = []
 for rm in readout_modes:
+    ccd_parameters = dict(aorgx_01=rm[0], aendx_01=rm[1],
+                          aorgy_01=rm[2], aendy_01=rm[3],
+                          ccdsum=rm[4])
     nbias_by_readout_mode[rm] = len(
-        ic.files_filtered(subarser=rm[0], ccdsum=rm[1], obstype='BIAS')
+        ic.files_filtered(obstype='BIAS', **ccd_parameters)
     )
-    readout_mode_breakdown.append('{} subframe {}, {} binning'.format(
-        len(ic.files_filtered(subarser=rm[0], ccdsum=rm[1])),
-        rm[0], rm[1].replace(' ', 'x')))
+    readout_mode_breakdown.append('{} {}'.format(
+        len(ic.files_filtered(**ccd_parameters)),
+        readout_mode_to_string(rm)))
 
 logger.info('''
   {} files:
@@ -192,29 +226,23 @@ logger.info('''
            len(readout_modes), '\n    '.join(readout_mode_breakdown)))
 
 
-def readout_mode_to_string(readout_mode):
-    return 'subframe {}, {} binning'.format(
-        readout_mode[0],
-        readout_mode[1].replace(' ', 'x')
-    )
-
-
-def readout_mode_to_suffix(readout_mode):
-    return '{}_{}'.format(
-        readout_mode[0],
-        readout_mode[1].replace(' ', 'x')
-    )
-
-
 ######################################################################
 # bias subtract
 bias = dict()
 logger.info('Bias frames.')
 for readout_mode in readout_modes:
-    fn = '{}/bias{}.fits'.format(
-        args.target, readout_mode_to_suffix(readout_mode))
+    fn = '{}/bias_{}_{}.fits'.format(
+        args.target, night, readout_mode_to_suffix(readout_mode))
+    existing_biases = sorted(glob(fn.replace('_{}_'.format(night), '_*_')))
+
     if os.path.exists(fn) and not args.reprocess_all:
         logger.info('  Read bias = {}.'.format(fn))
+        bias[readout_mode] = CCDData.read(fn)
+    elif len(existing_biases) > 0:
+        fn = existing_biases[-1]
+        logger.info('  Found {} possible bias frame{} to use.  Reading {}.'
+                    .format(len(existing_biases),
+                            '' if len(existing_biases) == 1 else 's', fn))
         bias[readout_mode] = CCDData.read(fn)
     elif nbias_by_readout_mode[readout_mode] == 0:
         logger.warning(
@@ -226,7 +254,9 @@ for readout_mode in readout_modes:
         logger.info('  Create bias = {}.'.format(
             readout_mode_to_string(readout_mode)))
         files = ic.files_filtered(
-            obstype='BIAS', subarser=readout_mode[0], ccdsum=readout_mode[1])
+            aorgx_01=readout_mode[0], aendx_01=readout_mode[1],
+            aorgy_01=readout_mode[2], aendy_01=readout_mode[3],
+            ccdsum=readout_mode[4], obstype='BIAS')
         files = [os.sep.join([ic.location, f]) for f in files]
         bias[readout_mode] = combine(files, method='average',
                                      clip_extrema=True, nlow=1, nhigh=1)
@@ -242,8 +272,11 @@ for readout_mode in readout_modes:
     if bias[readout_mode] is None:
         continue
     logger.info(f'Bias subtract and trim data for {readout_mode}.')
-    i = ((ic.summary['subarser'] == readout_mode[0])
-         * (ic.summary['ccdsum'] == readout_mode[1])
+    i = ((ic.summary['AORGX_01'] == readout_mode[0])
+         * (ic.summary['AENDX_01'] == readout_mode[1])
+         * (ic.summary['AORGY_01'] == readout_mode[2])
+         * (ic.summary['AENDY_01'] == readout_mode[3])
+         * (ic.summary['ccdsum'] == readout_mode[4])
          * ic.summary['subbias'].mask)
     logger.info('  {} files to bias subtract for {}'.format(
         sum(i), readout_mode_to_string(readout_mode)))
@@ -349,12 +382,20 @@ for style in needed_flat_styles(ic):
     k = style2key(style)
     flats[k] = 1
     for flat_key in args.flat_keys:
-        fn = '{}/{}-{}.fits'.format(ic.location,
-                                    flat_key.lower().replace(' ', ''),
-                                    style2key(style))
+        fn = '{}/{}_{}_{}.fits'.format(ic.location,
+                                       flat_key.lower().replace(' ', ''),
+                                       night,
+                                       style2key(style))
+        existing_flats = sorted(glob(fn.replace('_{}_'.format(night), '_*_')))
 
         if os.path.exists(fn) and not args.reprocess_all:
             logger.info('  Reading {}.'.format(fn))
+            flats[k] = CCDData.read(fn)
+        elif len(existing_flats) > 0:
+            fn = existing_flats[-1]
+            logger.info('  Found {} possible flat frame{} to use.  Reading {}.'
+                        .format(len(existing_flats),
+                                '' if len(existing_flats) == 1 else 's', fn))
             flats[k] = CCDData.read(fn)
         elif len(ic.files_filtered(obstype=flat_key, **style)) == 0:
             logger.warning(
@@ -405,14 +446,15 @@ for fn in ic.summary['file'][i]:
         s = subarray_slice(ccd.meta['SUBARR{:02}'.format(subframe)],
                            ccd.meta['CCDSUM'])
         t = subarray_slice(ccd.meta['TRIMSEC'], '1 1')  # flat was not trimmed
-    ccd = ccdproc.flat_correct(ccd, flats[flatkey][s][t])
+
+    ccd = ccdproc.flat_correct(ccd, flats[flatkey][s][t], norm_value=1.0)
 
     if args.lacosmic:
-        cleaned = ccdproc.cosmicray_lacosmic(
-            ccd, pssl=1100, gain=ccd.meta['gain'], readnoise=6)
-        # LA cosmic converts to e- and adds the bias.  Revert back.
-        ccd.data = cleaned.data / ccd.meta['gain'] - 1100
-        ccd.mask += cleaned.mask
+        # need bias added back in to get counting statistics right
+        crmask, cleaned = detect_cosmics(ccd.data + 1100, ccd.mask, sigclip=4.5,
+                                         gain=ccd.meta['gain'], readnoise=6.)
+        ccd.data = cleaned - 1100
+        ccd.mask += crmask
         ccd.header['LACOSMIC'] = 1, 'L.A.Cosmic processing flag.'
     else:
         ccd.header['LACOSMIC'] = 0, 'L.A.Cosmic processing flag.'
