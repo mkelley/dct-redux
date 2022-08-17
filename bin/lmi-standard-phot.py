@@ -176,6 +176,8 @@ columns = [
     "za",
     "airmass",
     "filter",
+    "x",
+    "y",
     "color",
     "dist",
     "m",
@@ -214,9 +216,9 @@ for f in sorted(args.files):
         phot = Table(hdu["CAT"].data)
         phot = phot[phot["krflux"] > 0]  # clean out bad data
         w = WCS(hdu[0])
-        radec = np.array(
-            w.pixel_to_world_values(list(zip(phot["x"], phot["y"])))
-        )
+        x = phot["x"]
+        y = phot["y"]
+        radec = np.array(w.pixel_to_world_values(list(zip(x, y))))
         coords = SkyCoord(*radec.T, unit="deg")
         m = -2.5 * np.log10(phot["krflux"] / exptime)
         merr = 1.0857 * phot["krfluxerr"] / phot["krflux"]
@@ -227,14 +229,19 @@ for f in sorted(args.files):
             indices, dist, d3 = coords.match_to_catalog_sky(cat["coords"])
 
             if "Farnham" in name:
-                i = dist < args.hb_dmax
+                closest = dist < args.hb_dmax
             else:
-                i = dist < args.dmax
+                closest = dist < args.dmax
 
-            indices, dist, d3 = indices[i], dist[i], d3[i]
+            if not any(closest):
+                continue
+
             for i in set(indices):
                 n += 1
-                matches = np.flatnonzero((indices == i))
+                matches = np.flatnonzero((indices == i) * closest)
+                if len(matches) == 0:
+                    continue
+
                 brightest = matches[m[matches].argmin()]
                 for j in matches:
                     if not args.keep_all and j != brightest:
@@ -248,6 +255,8 @@ for f in sorted(args.files):
                             za,
                             am,
                             filt,
+                            int(x[j]),
+                            int(y[j]),
                             cat["color"][i],
                             dist[j].arcsec,
                             cat[filt][i],
