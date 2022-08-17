@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from astropy.modeling.models import Const1D, Const2D, Gaussian1D, Gaussian2D
+from astropy.modeling.models import Const2D, Gaussian2D
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling import Fittable2DModel, Parameter
 import sys
@@ -7,13 +7,13 @@ import logging
 import argparse
 import warnings
 from datetime import datetime
-from glob import glob
 
 import numpy as np
 import scipy.ndimage as nd
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 
+import astropy
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy.wcs import WCS
@@ -24,10 +24,11 @@ import sep
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('files', nargs='*', help='files to process')
-parser.add_argument('--reprocess', action='store_true')
-parser.add_argument('--verbose', '-v', action='store_true',
-                    help='verbose logging')
+parser.add_argument("files", nargs="*", help="files to process")
+parser.add_argument("--reprocess", action="store_true")
+parser.add_argument(
+    "--verbose", "-v", action="store_true", help="verbose logging"
+)
 args = parser.parse_args()
 
 ######################################################################
@@ -77,13 +78,14 @@ class GaussianConst2D(Fittable2DModel):
     theta = Parameter(default=0)
 
     @staticmethod
-    def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev,
-                 y_stddev, theta):
+    def evaluate(
+        x, y, constant, amplitude, x_mean, y_mean, x_stddev, y_stddev, theta
+    ):
         """Two dimensional Gaussian plus constant function."""
 
-        model = Const2D(constant)(x, y) + Gaussian2D(amplitude, x_mean,
-                                                     y_mean, x_stddev,
-                                                     y_stddev, theta)(x, y)
+        model = Const2D(constant)(x, y) + Gaussian2D(
+            amplitude, x_mean, y_mean, x_stddev, y_stddev, theta
+        )(x, y)
         return model
 
 
@@ -105,10 +107,12 @@ def fit_2dgaussian(data):
     """
 
     if np.ma.count(data) < 7:
-        raise ValueError('Input data must have a least 7 unmasked values to '
-                         'fit a 2D Gaussian plus a constant.')
+        raise ValueError(
+            "Input data must have a least 7 unmasked values to "
+            "fit a 2D Gaussian plus a constant."
+        )
 
-    data.fill_value = 0.
+    data.fill_value = 0.0
     data = data.filled()
 
     # Subtract the minimum of the data as a rough background estimate.
@@ -119,28 +123,32 @@ def fit_2dgaussian(data):
     guess_y, guess_x = np.array(data.shape) / 2
 
     init_amplitude = np.ptp(data)
-    g_init = GaussianConst2D(constant=0, amplitude=init_amplitude,
-                             x_mean=guess_x,
-                             y_mean=guess_y,
-                             x_stddev=3,
-                             y_stddev=3,
-                             theta=0)
+    g_init = GaussianConst2D(
+        constant=0,
+        amplitude=init_amplitude,
+        x_mean=guess_x,
+        y_mean=guess_y,
+        x_stddev=3,
+        y_stddev=3,
+        theta=0,
+    )
     fitter = LevMarLSQFitter()
     y, x = np.indices(data.shape)
-    gfit = fitter(g_init, x, y, data)
+    with astropy.log.log_to_list() as log_list:
+        gfit = fitter(g_init, x, y, data)
 
     return gfit
 
 
 ######################################################################
 # setup logging
-logger = logging.Logger('LMI Add Catalog')
+logger = logging.Logger("LMI Add Catalog")
 logger.setLevel(logging.DEBUG)
 
 # this allows logging to work when lmi-add-cat is run multiple times from
 # ipython
 if len(logger.handlers) == 0:
-    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    formatter = logging.Formatter("%(levelname)s: %(message)s")
     level = logging.DEBUG if args.verbose else logging.INFO
 
     console = logging.StreamHandler(sys.stdout)
@@ -148,18 +156,19 @@ if len(logger.handlers) == 0:
     console.setFormatter(formatter)
     logger.addHandler(console)
 
-    logfile = logging.FileHandler('lmi-add-cat.log')
+    logfile = logging.FileHandler("lmi-add-cat.log")
     logfile.setLevel(level)
     logfile.setFormatter(formatter)
     logger.addHandler(logfile)
 
-logger.info('#' * 70)
+logger.info("#" * 70)
 logger.info(datetime.now().isoformat())
-logger.info('Command line: ' + ' '.join(sys.argv[1:]))
+logger.info("Command line: " + " ".join(sys.argv[1:]))
 
 ######################################################################
 # suppress unnecessary warnings
-warnings.simplefilter('ignore', FITSFixedWarning)
+warnings.simplefilter("ignore", FITSFixedWarning)
+warnings.simplefilter("ignore", FITSFixedWarning)
 
 ######################################################################
 
@@ -168,45 +177,54 @@ def show_objects(im, objects):
     # plot background-subtracted image
     fig, ax = plt.subplots()
     m, s = np.mean(im), np.std(im)
-    im = ax.imshow(im, interpolation='nearest', cmap='gray',
-                   vmin=m-s, vmax=m+s, origin='lower')
+    im = ax.imshow(
+        im,
+        interpolation="nearest",
+        cmap="gray",
+        vmin=m - s,
+        vmax=m + s,
+        origin="lower",
+    )
 
     # plot an ellipse for each object
     for i in range(len(objects)):
-        e = Ellipse(xy=(objects['x'][i], objects['y'][i]),
-                    width=6*objects['a'][i],
-                    height=6*objects['b'][i],
-                    angle=objects['theta'][i] * 180. / np.pi)
-        e.set_facecolor('none')
-        e.set_edgecolor('red')
+        e = Ellipse(
+            xy=(objects["x"][i], objects["y"][i]),
+            width=6 * objects["a"][i],
+            height=6 * objects["b"][i],
+            angle=objects["theta"][i] * 180.0 / np.pi,
+        )
+        e.set_facecolor("none")
+        e.set_edgecolor("red")
         ax.add_artist(e)
 
 
 for f in args.files:
-    if fits.getheader(f)['IMAGETYP'] != 'OBJECT':
+    if fits.getheader(f)["IMAGETYP"] != "OBJECT":
         continue
 
     logger.debug(f)
 
-    with fits.open(f, mode='update') as hdu:
+    with fits.open(f, mode="update") as hdu:
         im = hdu[0].data + 0
         h = hdu[0].header
 
-        if h['IMAGETYP'].upper() != 'OBJECT':
+        if h["IMAGETYP"].upper() != "OBJECT":
             logger.warning(
-                f'Refusing to measure {f} with image type {h["imagetyp"]}.')
+                f'Refusing to measure {f} with image type {h["imagetyp"]}.'
+            )
             continue
 
-        if 'MASK' in hdu:
-            mask = hdu['MASK'].data.astype(bool)
+        if "MASK" in hdu:
+            mask = hdu["MASK"].data.astype(bool)
         else:
             mask = np.zeros_like(im, bool)
 
-        if 'cat' in hdu:
+        if "cat" in hdu:
             if not args.reprocess:
                 continue
             else:
-                del hdu['cat']
+                del hdu["cat"]
 
         det = np.zeros_like(mask)
         for iteration in range(3):
@@ -219,26 +237,27 @@ for f in args.files:
 
         bkg = sep.Background(im, mask=det | mask, bw=64, bh=64, fw=3, fh=3)
 
-        if 'bg' in hdu:
-            del hdu['bg']
-        hdu.append(fits.ImageHDU(bkg.back(), name='bg'))
-        hdu['bg'].header['bg'] = bkg.globalback
-        hdu['bg'].header['rms'] = bkg.globalrms
+        if "bg" in hdu:
+            del hdu["bg"]
+        hdu.append(fits.ImageHDU(bkg.back(), name="bg"))
+        hdu["bg"].header["bg"] = bkg.globalback
+        hdu["bg"].header["rms"] = bkg.globalrms
 
         data = im - bkg
         data[mask] = 0
         try:
-            objects, labels = sep.extract(data, 3, err=bkg.globalrms,
-                                          segmentation_map=True)
+            objects, labels = sep.extract(
+                data, 3, err=bkg.globalrms, segmentation_map=True
+            )
         except Exception as e:
-            logger.error(f'{f}: Object detection failed - {str(e)}')
+            logger.error(f"{f}: Object detection failed - {str(e)}")
             continue
 
-        hdu[0].header['ncat'] = len(objects), 'number of objects in catalog'
+        hdu[0].header["ncat"] = len(objects), "number of objects in catalog"
         if len(objects) == 0:
             continue
 
-        #show_objects(data, objects)
+        # show_objects(data, objects)
 
         # estimate seeing
         fwhms = []
@@ -259,33 +278,81 @@ for f in args.files:
         rap = fwhm * 2 if np.isfinite(fwhm) else 10
 
         flux, fluxerr, flag = sep.sum_circle(
-            data, objects['x'], objects['y'], rap, err=bkg.globalrms,
-            gain=h['gain'])
+            data,
+            objects["x"],
+            objects["y"],
+            rap,
+            err=bkg.globalrms,
+            gain=h["gain"],
+        )
 
-        kronrad, krflag = sep.kron_radius(data, objects['x'], objects['y'],
-                                          objects['a'], objects['b'],
-                                          objects['theta'], 6.0)
+        kronrad, krflag = sep.kron_radius(
+            data,
+            objects["x"],
+            objects["y"],
+            objects["a"],
+            objects["b"],
+            objects["theta"],
+            6.0,
+        )
         krflux, krfluxerr, _flag = sep.sum_ellipse(
-            data, objects['x'], objects['y'], objects['a'], objects['b'],
-            np.minimum(objects['theta'], np.pi / 2.00001),
-            2.5 * kronrad, subpix=1, err=bkg.globalrms,
-            gain=h['gain'])
+            data,
+            objects["x"],
+            objects["y"],
+            objects["a"],
+            objects["b"],
+            np.minimum(objects["theta"], np.pi / 2.00001),
+            2.5 * kronrad,
+            subpix=1,
+            err=bkg.globalrms,
+            gain=h["gain"],
+        )
         krflag |= _flag  # combine flags
 
         wcs = WCS(h)
-        ra, dec = wcs.all_pix2world(objects['x'], objects['y'], 0)
+        ra, dec = wcs.all_pix2world(objects["x"], objects["y"], 0)
 
-        tab = Table((objects['x'], objects['y'], ra, dec, flux, fluxerr,
-                     flag, objects['a'], objects['b'], objects['theta'],
-                     kronrad, krflux, krfluxerr, krflag),
-                    names=('x', 'y', 'ra', 'dec', 'flux', 'fluxerr', 'flag',
-                           'a', 'b', 'theta', 'kronrad', 'krflux',
-                           'krfluxerr', 'krflag'))
-        if 'cat' in hdu:
-            del hdu['cat']
-        hdu.append(fits.BinTableHDU(tab, name='cat'))
-        hdu['cat'].header['FWHM'] = fwhm, 'estimated median FWHM'
-        hdu['cat'].header['RADIUS'] = 2 * fwhm, 'aperture photometry radius'
+        tab = Table(
+            (
+                objects["x"],
+                objects["y"],
+                ra,
+                dec,
+                flux,
+                fluxerr,
+                flag,
+                objects["a"],
+                objects["b"],
+                objects["theta"],
+                kronrad,
+                krflux,
+                krfluxerr,
+                krflag,
+            ),
+            names=(
+                "x",
+                "y",
+                "ra",
+                "dec",
+                "flux",
+                "fluxerr",
+                "flag",
+                "a",
+                "b",
+                "theta",
+                "kronrad",
+                "krflux",
+                "krfluxerr",
+                "krflag",
+            ),
+        )
+        if "cat" in hdu:
+            del hdu["cat"]
+        hdu.append(fits.BinTableHDU(tab, name="cat"))
+        hdu["cat"].header["FWHM"] = fwhm, "estimated median FWHM"
+        hdu["cat"].header["RADIUS"] = 2 * fwhm, "aperture photometry radius"
 
-        logger.info(f"{f}: {len(tab)} objects, seeing = {fwhm:.1f}, background mean/rms = "
-                    f"{hdu['bg'].header['bg']:.1f}/{hdu['bg'].header['rms']:.1f}")
+        logger.info(
+            f"{f}: {len(tab)} objects, seeing = {fwhm:.1f}, background mean/rms = "
+            f"{hdu['bg'].header['bg']:.1f}/{hdu['bg'].header['rms']:.1f}"
+        )
