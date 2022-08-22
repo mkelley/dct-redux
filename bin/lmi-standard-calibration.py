@@ -230,6 +230,17 @@ if args.outfile is not None:
 #
 
 mcolor = plt.cm.rainbow(np.linspace(0, 1, len(phot)))
+markers = {
+    "RC": "s",
+    "BC": "^",
+    "UC": "v",
+    "NH": "<",
+    "C2": ">",
+    "CN": "h",
+    "OH": "o",
+    "r'": "o",
+    "g'": "s",
+}
 
 fig = plt.figure(1)
 fig.clear()
@@ -245,7 +256,9 @@ for filt, pset in filters.items():
     else:
         y = dm
 
-    plt.scatter(X[i], y[i], color=mcolor[i], alpha=0.5)
+    plt.scatter(
+        X[i], y[i], color=mcolor[i], alpha=0.5, marker=markers.get(filt, "o")
+    )
     if np.any(bad):
         plt.scatter(X[bad], y[bad], color=mcolor[bad], marker="x", alpha=0.5)
 
