@@ -413,11 +413,17 @@ function calibrate_catalogs() {
 Calibrate catalogs
 ------------------
 EOT
+
+  FETCH=default
+
   while true
   do
     cat<<EOT
 
+Fetch: $FETCH
+
 Press
+  f to set catalog fetch option
   c to continue
   s to skip this step
   q to quit the script
@@ -425,9 +431,16 @@ EOT
 
     read -rsn1 response
     case "$response" in
+    "f")
+      echo "Catalog fetch option: as needed (default), for all images (all), or for none of them (none)"
+      read -r FETCH
+      ;;
     "c")
       cd phot
-      lmi-calibrate-catalog.py ../ppp/lmi*fits --plot
+      [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt
+      lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --fetch=$FETCH
+      echo
+      cat catalog-extinction.txt
       cd ..
       break
       ;;
@@ -435,6 +448,18 @@ EOT
     "q") exit;;
     esac
   done
+}
+
+function _standardphot() {
+  [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt && echo "Backed up standard-phot.txt"
+  lmi-standard-phot.py --keep-all $*
+}
+
+function _zeropoints() {
+  [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
+  lmi-standard-calibration.py standard-phot.txt
+  lmi-plot-cat-zps.py
+  cat cal-standard-phot.txt
 }
 
 function standard_stars() {
@@ -445,44 +470,64 @@ function standard_stars() {
 Standard star calibration
 -------------------------
 EOT
+
+  DMAX=2
+  HBDMAX=20
   cd phot
+
   while true
   do
     cat<<EOT
 
-First measure standard stars, then edit out bad photometry, and finally
-derive zero-points.
+First measure standard stars, then derive zero-points.
+
+Offset tolerances:
+  HB catalog: $HBDMAX"
+  Others: $DMAX"
 
 Press
-  m to measure standard star photometry
+  b to measure the brightest source near the star coordinates
+  k to measure all sources within the offset tolerances
+  t to set the offset tolerances
   e to manually edit standard-phot.txt (e.g., to remove bad data) with $EDITOR
-  z to derive zero-points
-  s to skip this step / continue
+  s to skip this step
   q to quit the script
 EOT
 
+    opts="-f --dmax=${DMAX}arcsec --hb-dmax=${HBDMAX}arcsec ../ppp/lmi*fits"
+
     read -rsn1 response
     case "$response" in
-    "m")
-      echo "Standard star photometry"
-      echo "Backing up standard-phot.txt"
-      [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt
-      lmi-standard-phot.py -f ../ppp/lmi*fits || echo "Use (o)verwrite option"
+    "b")
+      echo "Measure stars"
+      _standardphot $opts
+      echo "Derive zero-points"
+      _zeropoints
+      echo "See plots in phot/"
       echo
-      echo "Edit bad photometry from phot/standard-phot.txt as needed"
+      echo "Edit bad photometry from standard-phot.txt as needed"
+      ;;
+    "k")
+      echo "Measure stars"
+      _standardphot --keep-all $opts
+      echo "Derive zero-points"
+      _zeropoints
+      echo "See plots in phot/"
+      echo
+      echo "Edit bad photometry from standard-phot.txt as needed"
+      ;;
+    "t")
+      echo -n "Enter HB catalog tolerance (arcsec): "
+      read -r HBDMAX
+      echo -n "Enter other catalogs tolerance (arcsec): "
+      read -r DMAX
+      echo
       ;;
     "e")
-      echo "Backing up standard-phot.txt"
-      [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt
+      [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt && echo "Backed up standard-phot.txt"
       $EDITOR standard-phot.txt
-      ;;
-    "z")
       echo "Derive zero-points"
-      [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
-      [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt
-      lmi-standard-calibration.py standard-phot.txt
-      lmi-plot-cat-zps.py
-      echo
+      _zeropoints
       echo "See plots in phot/"
       ;;
     "s") break;;
@@ -513,6 +558,7 @@ do
   cat<<EOT
 
 Press
+  0 to continue with "Filename normalization"
   1 to skip to "FITS header fixes"
   2 to skip to "Input file list"
   3 to skip to "Bias and flat correct"
@@ -523,7 +569,7 @@ Press
   8 to skip to "Photometric catalogs"
   9 to skip to "Calibrate catalogs"
   a to skip to "Standard star calibration"
-  c to continue with "Filename normalization"
+  c to continue
   q to quit the script
 EOT
   read -rsn1 first_step
@@ -531,7 +577,7 @@ EOT
   "c")
     first_step="0"
     break;;
-  [1-9a]) break;;
+  [0-9a]) break;;
   "q") exit;;
   esac
 done
