@@ -18,9 +18,10 @@ from calviacat.catalog import CalibrationError
 parser = argparse.ArgumentParser()
 parser.add_argument("files", nargs="+")
 parser.add_argument(
-    "--force-fetch",
-    action="store_true",
-    help="fetch a new catalog for each image",
+    "--fetch",
+    default="default",
+    choices=["default", "all", "none"],
+    help="fetch catalogs as needed (default), for all images (all), or for none of them (none)",
 )
 parser.add_argument(
     "--filter",
@@ -156,9 +157,12 @@ for f in args.files:
         if len(fetched) > 0
         else 180 * u.deg
     )
-    if (not h.get("cfetched", False) and (distance > 1 * u.arcmin)) or (
-        args.force_fetch
-    ):
+    if (
+        not h.get("cfetched", False)
+        and (distance > 1 * u.arcmin)
+        and (args.fetch != "none")
+    ) or (args.fetch == "all"):
+        breakpoint()
         refcat2.fetch_field(dct)
         fetched.append(center)
         h["cfetched"] = (True, "catalog fetched for this image")
