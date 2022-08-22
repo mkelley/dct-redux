@@ -85,7 +85,6 @@ ra = eph["RA"].filled(np.nan)
 dec = eph["Dec"].filled(np.nan)
 for j in range(len(eph)):
     _c = SkyCoord(ra[j], dec[j])
-    breakpoint()
     print("  ", t[j].iso, _c.to_string("hmsdms"))
     c.append(_c)
 
