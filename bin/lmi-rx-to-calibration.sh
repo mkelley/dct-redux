@@ -437,10 +437,9 @@ EOT
       ;;
     "c")
       cd phot
-      [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt
+      # backup and expire old catalog extinction file, if it exists
+      [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt && rm catalog-extinction.txt
       lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --fetch=$FETCH
-      echo
-      cat catalog-extinction.txt
       cd ..
       break
       ;;
@@ -452,14 +451,18 @@ EOT
 
 function _standardphot() {
   [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt && echo "Backed up standard-phot.txt"
+  # backup and expire old standard extinction file, if it exists
+  [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt && rm cal-standard-phot.txt
   lmi-standard-phot.py --keep-all $*
 }
 
 function _zeropoints() {
   [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
   lmi-standard-calibration.py standard-phot.txt
+  [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt
   lmi-plot-cat-zps.py
-  cat cal-standard-phot.txt
+  [ -e cal-standard-phot.txt ] && cat cal-standard-phot.txt || echo "Missing standard calibration results!"
+  [ -e catalog-extinction.txt ] && cat catalog-extinction.txt || echo "Missing catalog extinction results!"
 }
 
 function standard_stars() {
