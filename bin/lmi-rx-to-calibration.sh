@@ -39,6 +39,7 @@ EOT
 
 function header_fixes() {
   pushd .
+  cd raw
   cat<<EOT
 
 
@@ -63,7 +64,7 @@ EOF
 
 Press
   n to create a new raw/fixes.txt from template
-  e to edit raw/fixes.txt with "$EDITOR"
+  e to edit fixes.txt with "$EDITOR"
   m to show basic file metadata
   t to test changes in updated file
   c to continue and commit to changes
