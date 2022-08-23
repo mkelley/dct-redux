@@ -162,7 +162,6 @@ for f in args.files:
         and (distance > 1 * u.arcmin)
         and (args.fetch != "none")
     ) or (args.fetch == "all"):
-        breakpoint()
         refcat2.fetch_field(dct)
         fetched.append(center)
         h["cfetched"] = (True, "catalog fetched for this image")
