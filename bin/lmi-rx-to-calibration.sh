@@ -415,16 +415,23 @@ Calibrate catalogs
 EOT
 
   FETCH=default
+  ZPOPTS=
+  cd phot
 
   while true
   do
     cat<<EOT
 
-Fetch: $FETCH
+Fetch option: $FETCH
+Extinction fit options: $ZPOPTS
+
+First calibrate the catalogs, then fit and plot the zeropoints.
 
 Press
   f to set catalog fetch option
-  c to continue
+  c to calibrate the catalogs
+  e to set extinction calculation options
+  z to fit the zeropoints as a function of airmass
   s to skip this step
   q to quit the script
 EOT
@@ -436,17 +443,26 @@ EOT
       read -r FETCH
       ;;
     "c")
-      cd phot
-      # backup and expire old catalog extinction file, if it exists
+      # backup and expire old files
+      [ -e catalog-cal-summary.txt ] && cp -f --backup=numbered catalog-cal-summary.txt catalog-cal-summary.txt && rm catalog-cal-summary.txt
       [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt && rm catalog-extinction.txt
       lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --fetch=$FETCH
-      cd ..
-      break
+      ;;
+    "e")
+      echo "Options to pass to lmi-fit-cat-zps.py, e.g., --nrange or --arange:"
+      read -r ZPOPTS
+      ;;
+    "z")
+      [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt && echo "catalog-extinction.txt backed up."
+      lmi-fit-cat-zps.py ../ppp $ZPOPTS
+      [ -e catalog-extinction.txt ] && cat catalog-extinction.txt || echo "Missing catalog extinction results!"
       ;;
     "s") break;;
     "q") exit;;
     esac
   done
+
+  cd ..
 }
 
 function _standardphot() {
@@ -459,10 +475,7 @@ function _standardphot() {
 function _zeropoints() {
   [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
   lmi-standard-calibration.py standard-phot.txt
-  [ -e catalog-extinction.txt ] && cp -f --backup=numbered catalog-extinction.txt catalog-extinction.txt
-  lmi-plot-cat-zps.py
   [ -e cal-standard-phot.txt ] && cat cal-standard-phot.txt || echo "Missing standard calibration results!"
-  [ -e catalog-extinction.txt ] && cat catalog-extinction.txt || echo "Missing catalog extinction results!"
 }
 
 function standard_stars() {
