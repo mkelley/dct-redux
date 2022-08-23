@@ -295,6 +295,8 @@ for f in args.files:
             objects["theta"],
             6.0,
         )
+        kronrad[krflag > 0] = 0  # ignore any flagged data
+
         krflux, krfluxerr, _flag = sep.sum_ellipse(
             data,
             objects["x"],
