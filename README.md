@@ -7,7 +7,7 @@ The scripts for early steps in the reduction, e.g., file name normalization and 
 ## Requirements
 * Python 3
 * astropy
-* ccdproc
+* ccdproc >=2.2
 * sep
 * DS9
 * pyds9

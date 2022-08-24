@@ -228,19 +228,17 @@ logger.info(f"Processing night: {night}")
 flat_breakdown = []
 data_breakdown = []
 for filt in filters:
-    # ccdproc 2.1.1 workaround for CO+ filtera
-    filter_pattern = filt.replace("+", r"\+")
     for k in args.flat_keys:
         flat_breakdown.append(
             "{} {} {}".format(
-                len(ic.files_filtered(obstype=k, filters=filter_pattern)),
+                len(ic.files_filtered(obstype=k, filters=filt)),
                 filt,
                 k,
             )
         )
     data_breakdown.append(
         "{} {}".format(
-            len(ic.files_filtered(obstype="OBJECT", filters=filter_pattern)),
+            len(ic.files_filtered(obstype="OBJECT", filters=filt)),
             filt,
         )
     )
@@ -408,7 +406,7 @@ def style2key(style):
     """
 
     k = "{}-{}{}D".format(
-        style["FILTERS"].replace(r"\+", "+"),  # workaround for ccdproc 2.1.1
+        style["FILTERS"],
         style["CCDSUM"].strip().replace(" ", "x"),
         "+" if style["FMDSTAT"] == "EXTENDED" else "-",
     )
@@ -432,7 +430,7 @@ def needed_flat_styles(ic):
         if style not in data_styles:
             data_styles.append(style)
             yield {
-                "FILTERS": style[0].replace("+", r"\+"),
+                "FILTERS": style[0],
                 "CCDSUM": style[1],
                 "FMDSTAT": style[2],
             }
