@@ -5,7 +5,6 @@ import logging
 import argparse
 from glob import glob
 from datetime import datetime
-from collections import defaultdict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -150,11 +149,11 @@ def fit_and_plot(summary):
     mms = sigma_clipped_stats(fit(summary["airmass"]) - summary["magzp"])
 
     a = np.linspace(1, max(3, max(summary["airmass"]) + 1))
-    plt.plot(a, fit(a), color="k", ls=":", lw=1)
+    plt.plot(a, fit(a), color="k", ls=":", lw=0.5)
 
     # label = f"{filt}, {start}-{stop} (σ={mms[2]:.3f})"
     a = np.linspace(summary["airmass"].min(), summary["airmass"].max())
-    plt.plot(a, fit(a), ls="-", lw=2)
+    plt.plot(a, fit(a), ls="-", lw=1.5, alpha=0.5)
 
     return {
         "zeropoint": round(fit.intercept.value, 5),
