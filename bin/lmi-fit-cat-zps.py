@@ -112,9 +112,8 @@ for f in files:
     if ch.get("nsrcs", -1) < 3:
         continue
 
-    # zp[filt].append(ch["magzp"] - 2.5 * np.log10(h["exptime"]))
-    # unc[filt].append(ch["mzpunc"])
-    # airmass[filt].append(_airmass)
+if len(summary) == 0:
+    raise ValueError(f"No calibrated catalogs found in {len(files)} files.")
 
 summary = Table(summary)
 summary.meta["comments"] = ["magzp includes correction for exposure time"]
