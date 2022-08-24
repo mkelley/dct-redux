@@ -170,7 +170,7 @@ EOT
   do
     # everything flat corrected?  then continue, else prompt user
     uncorrected=`gethead obstype flatfile ppp/lmi*fits | grep OBJECT | grep -v flat || echo "0"`
-    if [ $uncorrected == "0" ]
+    if [ "$uncorrected" == "0" ]
     then
       echo "All files corrected"
       break
@@ -215,7 +215,7 @@ EOT
   do
 
     echo
-    echo -n target-summary.txt
+    echo -n "target-summary.txt"
     [ -e target-summary.txt ] && echo " exists" || echo " does not exist"
     echo -n "file-summary.txt"
     [ -e file-summary.txt ] && echo " exists" || echo " does not exist"

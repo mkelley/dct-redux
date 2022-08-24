@@ -138,4 +138,5 @@ Table(files).write(
 tab.filled(-999).write(
     "target-summary.txt", format="ascii.fixed_width_two_line", overwrite=True
 )
-os.system("cat target-summary.txt")
+tab.filled(-999).write("target-summary.csv", overwrite=True)
+os.system("cat target-summary.csv")
