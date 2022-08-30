@@ -8,9 +8,9 @@ function filename_normalization()
   cat<<EOT
 
 
---------------------------
-Raw filename normalization
---------------------------
+-----------------------------
+0. Raw filename normalization
+-----------------------------
 EOT
   while true
   do
@@ -43,9 +43,9 @@ function header_fixes() {
   cat<<EOT
 
 
------------------
-FITS header fixes
------------------
+--------------------
+1. FITS header fixes
+--------------------
 EOT
 
   if [ ! -e fixes.txt ]
@@ -107,9 +107,9 @@ function file_list() {
   cat<<EOT
 
 
----------------
-Input file list
----------------
+------------------
+2. Input file list
+------------------
 EOT
 
   if [ ! -e all.list ]
@@ -161,9 +161,9 @@ function bias_and_flat() {
   cat<<EOT
 
 
----------------------
-Bias and flat correct
----------------------
+------------------------
+3. Bias and flat correct
+------------------------
 EOT
 
   while true
@@ -206,9 +206,9 @@ function summarize_files() {
   cat<<EOT
 
 
----------------
-Summarize files
----------------
+------------------
+4. Summarize files
+------------------
 EOT
 
   while true
@@ -246,9 +246,9 @@ function wcs() {
   cat<<EOT
 
 
------------------------
-World coordinate system
------------------------
+--------------------------
+5. World coordinate system
+--------------------------
 EOT
 
   while true
@@ -294,9 +294,9 @@ function sort_files() {
   cat<<EOT
 
 
--------------
-Sorting files
--------------
+----------------
+6. Sorting files
+----------------
 EOT
   lmi-sort.py ppp
 }
@@ -306,9 +306,9 @@ function moving_wcs() {
   cat<<EOT
 
 
-----------
-Moving WCS
-----------
+-------------
+7. Moving WCS
+-------------
 EOT
 
   declare -A dirs
@@ -343,14 +343,21 @@ EOT
     read -rsn1 response
     case "$response" in
     "t")
-      echo -n "Enter directory name: "
-      read -r d
-      if [ ! -z "${dirs[$d]}" ]
+      echo -n "Enter space-separated directory names: "
+      read -r dlist
+      if [ ! -z "$dlist" ]
       then
-        dirs[$d]=${toggle[${dirs[$d]}]}
-      else
-        echo
-        echo "Directory $d not found in sorted/"
+        for d in $dlist
+        do
+          if [ ! -z "${dirs[$d]}" ]
+          then
+
+            dirs[$d]=${toggle[${dirs[$d]}]}
+          else
+            echo
+            echo "Directory $d not found in sorted/"
+          fi
+        done
       fi
       echo
       ;;
@@ -374,9 +381,9 @@ function photometric_catalogs() {
   cat<<EOT
 
 
---------------------
-Photometric catalogs
---------------------
+-----------------------
+8. Photometric catalogs
+-----------------------
 EOT
 
   while true
@@ -410,9 +417,9 @@ function calibrate_catalogs() {
   cat<<EOT
 
 
-------------------
-Calibrate catalogs
-------------------
+---------------------
+9. Calibrate catalogs
+---------------------
 EOT
 
   FETCH=default
@@ -483,9 +490,9 @@ function standard_stars() {
   cat<<EOT
 
 
--------------------------
-Standard star calibration
--------------------------
+----------------------------
+a. Standard star calibration
+----------------------------
 EOT
 
   DMAX=2
