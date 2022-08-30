@@ -61,9 +61,10 @@ obj = obj[0]
 comet_match = re.findall(comet_pat, obj)
 aster_match = re.findall(aster_pat, obj)
 m = comet_match + aster_match
-assert len(m) != 0, "Designation is not that of a comet or asteroid: {}".format(
-    obj
-)
+if len(m) == 0:
+    raise ValueError(
+        "Designation is not that of a comet or asteroid: {}".format(obj)
+    )
 target = m[0][0]
 
 c = []
@@ -71,12 +72,16 @@ print(obj)
 
 if args.source == "jpl":
     if comet_match:
-        opts = dict(closest_apparition=True, no_fragments=True)
+        opts = dict(
+            closest_apparition=True, no_fragments=True, id_type="designation"
+        )
     else:
         opts = {}
-    eph = Ephem.from_horizons(
-        target, id_type="designation", epochs=t, location="G37", **opts
-    )
+
+    if target.isdigit():
+        opts["id_type"] = "smallbody"
+
+    eph = Ephem.from_horizons(target, epochs=t, location="G37", **opts)
 elif args.source == "mpc":
     eph = Ephem.from_mpc(target, epochs=t, location="G37")
 
