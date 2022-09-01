@@ -105,7 +105,7 @@ for f in files:
             "magzp": np.round(zp, 5),
             "clrcoeff": np.round(ch["clrcoeff"], 5),
             "mzpunc": np.round(ch["mzpunc"], 5),
-            "ignore": h["OBSERNO"] in args.ignore,
+            "ignore": (h["OBSERNO"] in args.ignore) or (ch["mzpunc"] == 0),
         }
     )
 
