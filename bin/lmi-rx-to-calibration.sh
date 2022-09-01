@@ -126,8 +126,7 @@ EOT
 Press
   n to create a new all.list (an existing file will be backed up)
   e to edit bad files from all.list with "$EDITOR"
-  c to continue and process all.list with lmi-rx.py
-  s to skip this step
+  c to continue
   q to quit the script
 EOT
     read -rsn1 response
@@ -146,56 +145,7 @@ EOT
     "e")
       $EDITOR all.list
       ;;
-    "c") 
-      lmi-rx.py all.list
-      break
-      ;;
-    "s") break;;
-    "q") exit;;
-    esac
-  done
-}
-
-
-function bias_and_flat() {
-  cat<<EOT
-
-
-------------------------
-3. Bias and flat correct
-------------------------
-EOT
-
-  while true
-  do
-    # everything flat corrected?  then continue, else prompt user
-    uncorrected=`gethead obstype flatfile ppp/lmi*fits | grep OBJECT | grep -v flat || echo "0"`
-    if [ "$uncorrected" == "0" ]
-    then
-      echo "All files corrected"
-      break
-    fi
-
-    cat <<EOT
-
-Some files not corrected
-  - If lmi-rx.py has already run, add missing calibration files to ppp before continuing
-
-Press
-  l to list files not yet corrected
-  c to continue and process files with lmi-rx.py
-  s to skip this step
-  q to quit the script
-EOT
-    read -rsn1 response
-    echo
-    case "$response" in
-    "l")
-      gethead -a FLATFILE OBSTYPE OBJECT CCDSUM FILTERS FMDSTAT ppp/lmi*fits | grep OBJECT | awk '$2 == "___" { print; }'
-      echo
-      ;;
-    "c") lmi-rx.py all.list;;
-    "s") break;;
+    "c") break;;
     "q") exit;;
     esac
   done
@@ -204,10 +154,8 @@ EOT
 
 function summarize_files() {
   cat<<EOT
-
-
 ------------------
-4. Summarize files
+3. Summarize files
 ------------------
 EOT
 
@@ -231,10 +179,57 @@ EOT
     echo
     case "$response" in
     "c")
-      dct-summary.py ppp/lmi*fits
+      dct-summary.py --list all.list
       echo
       break
       ;;
+    "s") break;;
+    "q") exit;;
+    esac
+  done
+}
+
+function bias_and_flat() {
+  cat<<EOT
+
+
+------------------------
+4. Bias and flat correct
+------------------------
+EOT
+
+  while true
+  do
+    # everything flat corrected?  then continue, else prompt user
+    if [ -e ppp ]
+    then
+      uncorrected=`gethead obstype flatfile ppp/lmi*fits | grep OBJECT | grep -v flat || echo "0"`
+      if [ "$uncorrected" == "0" ]
+      then
+        echo "All files corrected"
+      else
+        cat<<EOT
+Some files not corrected
+  - If lmi-rx.py has already run, add missing calibration files to ppp/ before continuing
+EOT
+      fi
+    fi
+
+    cat <<EOT
+Press
+  l to list files not yet corrected
+  c to continue and process files in all.list with lmi-rx.py
+  s to skip this step
+  q to quit the script
+EOT
+    read -rsn1 response
+    echo
+    case "$response" in
+    "l")
+      gethead -a FLATFILE OBSTYPE OBJECT CCDSUM FILTERS FMDSTAT ppp/lmi*fits | grep OBJECT | awk '$2 == "___" { print; }'
+      echo
+      ;;
+    "c") lmi-rx.py all.list;;
     "s") break;;
     "q") exit;;
     esac
@@ -388,6 +383,16 @@ EOT
 
   while true
   do
+    CATS=`fitsinfo ppp/lmi*.fits|awk '$2 == "CAT" { print; }'|wc -l`
+    FILES=`gethead IMAGETYP ppp/lmi*fits|grep OBJECT|wc -l`
+    echo
+    if [ "$CATS" = "$FILES" ]
+    then
+      echo "All $FILES object files have catalogs."
+    else
+      echo "$CATS of $FILES object files have catalogs."
+    fi
+
     cat<<EOT
 
 Press
@@ -585,8 +590,8 @@ Press
   0 to continue with "Filename normalization"
   1 to skip to "FITS header fixes"
   2 to skip to "Input file list"
-  3 to skip to "Bias and flat correct"
-  4 to skip to "Summarize files"
+  3 to skip to "Summarize files"
+  4 to skip to "Bias and flat correct"
   5 to skip to "World coordinate system"
   6 to skip to "Sorting files"
   7 to skip to "Moving WCS"
@@ -612,8 +617,8 @@ mkdir -p wcs phot
 [[ "0x$first_step" -le "0x0" ]] && filename_normalization
 [[ "0x$first_step" -le "0x1" ]] && header_fixes
 [[ "0x$first_step" -le "0x2" ]] && file_list
-[[ "0x$first_step" -le "0x3" ]] && bias_and_flat
-[[ "0x$first_step" -le "0x4" ]] && summarize_files
+[[ "0x$first_step" -le "0x3" ]] && summarize_files
+[[ "0x$first_step" -le "0x4" ]] && bias_and_flat
 [[ "0x$first_step" -le "0x5" ]] && wcs
 [[ "0x$first_step" -le "0x6" ]] && sort_files
 [[ "0x$first_step" -le "0x7" ]] && moving_wcs
