@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import argparse
 import numpy as np
 from astropy.io import fits
@@ -9,8 +10,25 @@ from sbpy.data import Names, Ephem, natural_sort_key
 
 parser = argparse.ArgumentParser()
 parser.add_argument("files", nargs="+")
+parser.add_argument(
+    "--list",
+    "-l",
+    action="store_true",
+    help="files are lists of files to summarize (lines starting with # are ignored)",
+)
 
 args = parser.parse_args()
+
+
+def read_list(fn):
+    # lists of files are relative to fn's location
+    path = os.path.dirname(fn)
+    with open(fn, "r") as inf:
+        files = [
+            os.path.join(path, line.strip()) for line in inf if line[0] != "#"
+        ]
+    print(files)
+    return files
 
 
 def get_ephemeris(target):
@@ -35,9 +53,18 @@ def get_ephemeris(target):
 
 # summarize files and save all headers
 # OBSTYPE OBJECT CCDSUM FILTERS FMDSTAT AORGX_01 AENDX_01 AORGY_01 AENDY_01
+if args.list:
+    filenames = sum([read_list(fn) for fn in args.files], [])
+else:
+    filenames = args.files
+
+if len(filenames) == 0:
+    print("No files to summarize.", file=sys.stderr)
+    exit(1)
+
 headers = []
 files = []
-for f in sorted(args.files):
+for f in sorted(filenames):
     h = fits.getheader(f)
     row = {"file": f}
     row.update(
