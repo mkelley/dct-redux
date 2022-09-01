@@ -92,8 +92,6 @@ if args.outfile is None:
 else:
     outf = open(args.outfile, "w")
 
-#
-
 A, A_unc = {}, {}
 for filt, pset in filters.items():
     if sum(pset) == 0:
@@ -103,11 +101,12 @@ for filt, pset in filters.items():
         # OH gets a different treatment
         continue
 
-    m_inst = phot["m_inst"][good * pset]
-    m_inst_unc = phot["m_inst_err"][good * pset]
-    M = phot["m"][good * pset]
-    x = X[good * pset]
-    color = phot["color"][good * pset]
+    in_catalog = np.isfinite(phot["m"])
+    m_inst = phot["m_inst"][good * pset * in_catalog]
+    m_inst_unc = phot["m_inst_err"][good * pset * in_catalog]
+    M = phot["m"][good * pset * in_catalog]
+    x = X[good * pset * in_catalog]
+    color = phot["color"][good * pset * in_catalog]
 
     # indices for airmass and color correction
     ai = None
