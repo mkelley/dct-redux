@@ -408,7 +408,7 @@ def style2key(style):
     k = "{}-{}{}D".format(
         style["FILTERS"],
         style["CCDSUM"].strip().replace(" ", "x"),
-        "+" if style["FMDSTAT"] == "EXTENDED" else "-",
+        "+" if style.get("FMDSTAT") == "EXTENDED" else "-",
     )
 
     return k
@@ -432,7 +432,7 @@ def needed_flat_styles(ic):
             yield {
                 "FILTERS": style[0],
                 "CCDSUM": style[1],
-                "FMDSTAT": style[2],
+                "FMDSTAT": None if style[2] is np.ma.masked else style[2],
             }
 
 
