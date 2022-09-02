@@ -84,8 +84,12 @@ LMI2REFCAT_FILTER = {
     "SDSS-R": "r",
     "SDSS-I": "i",
     "SDSS-Z": "z",
+    "V": "g",
     "VR": "r",
+    "R": "r",
     "BC": "g",
+    "C2": "g",
+    "GC": "g",
     "RC": "i",
 }
 
@@ -96,8 +100,12 @@ cal_kwargs = {
     "SDSS-R": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=0.011),
     "SDSS-I": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=0.020),
     "SDSS-Z": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=-0.050),
+    "V": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=None),
     "VR": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=-0.062),
+    "R": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=None),
     "BC": dict(mlim=[14, 19], gmi_lim=[0.2, 3.0], C=-0.503),
+    "C2": dict(mlim=[14, 19], gmi_lim=[0.2, 1.5], C=None),
+    "GC": dict(mlim=[14, 19], gmi_lim=[0.2, 1.5], C=None),
     "RC": dict(mlim=[14, 19], gmi_lim=[0.2, 1.5], C=-0.135),
 }
 
@@ -106,8 +114,12 @@ cal_color = {
     "SDSS-R": "g-r",
     "SDSS-I": "g-r",
     "SDSS-Z": "g-r",
+    "V": "g-r",
     "VR": "g-r",
+    "R": "g-r",
     "BC": "g-r",
+    "C2": "g-r",
+    "GC": "g-r",
     "RC": "g-r",
 }
 
