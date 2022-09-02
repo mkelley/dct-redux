@@ -116,6 +116,7 @@ def landolt09():
     dec[table["DE-"].data == b"-"] *= -1
     cat["coords"] = SkyCoord(ra, dec)
     cat["V"] = table["Vmag"].data.data
+    cat["V_err"] = table["e_Vmag"].data.data
     cat["R"] = table["Vmag"].data.data - table["V-R"].data.data
     cat["R_err"] = np.sqrt(
         table["e_Vmag"].data.data ** 2 + table["e_V-R"].data.data ** 2
