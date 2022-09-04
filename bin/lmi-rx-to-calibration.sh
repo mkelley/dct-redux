@@ -46,6 +46,7 @@ function header_fixes() {
 --------------------
 1. FITS header fixes
 --------------------
+
 EOT
 
   if [ -e fixes.txt ]
@@ -56,7 +57,6 @@ EOT
 first frame, last frame, keyword, value
 # 11, 26,	object|objname, 96 Her
 EOF
-    echo
     echo "--> Created raw/fixes.txt"
   fi
 
@@ -112,6 +112,7 @@ function file_list() {
 ------------------
 2. Input file list
 ------------------
+
 EOT
 
   if [ -e all.list ]
@@ -119,7 +120,6 @@ EOT
     echo "all.list already exists"
   else
     ls raw/lmi*fits > all.list
-    echo
     echo "--> Created all.list"
   fi
 
