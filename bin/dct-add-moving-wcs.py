@@ -9,6 +9,7 @@ from astropy.io import fits
 from astroquery.simbad import Simbad
 import astropy.coordinates as coords
 from astropy.coordinates import SkyCoord
+from astropy.table import vstack
 import astropy.units as u
 
 # from astroquery.jplhorizons import Horizons
@@ -81,7 +82,16 @@ if args.source == "jpl":
     if target.isdigit():
         opts["id_type"] = "smallbody"
 
-    eph = Ephem.from_horizons(target, epochs=t, location="G37", **opts)
+    # only get ~30 at a time
+    eph = None
+    chunks = max(len(t) // 30, 1)
+    for _t in np.array_split(t, chunks):
+        _eph = Ephem.from_horizons(target, epochs=_t, location="G37", **opts)
+        if eph is None:
+            eph = _eph
+        else:
+            eph.table = vstack((eph.table, _eph.table))
+
 elif args.source == "mpc":
     eph = Ephem.from_mpc(target, epochs=t, location="G37")
 
