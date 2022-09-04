@@ -48,8 +48,10 @@ function header_fixes() {
 --------------------
 EOT
 
-  if [ ! -e fixes.txt ]
-  then 
+  if [ -e fixes.txt ]
+  then
+    echo "fixes.txt already exists"
+  else
     cat>fixes.txt<<EOF
 first frame, last frame, keyword, value
 # 11, 26,	object|objname, 96 Her
@@ -112,8 +114,10 @@ function file_list() {
 ------------------
 EOT
 
-  if [ ! -e all.list ]
+  if [ -e all.list ]
   then 
+    echo "all.list already exists"
+  else
     ls raw/lmi*fits > all.list
     echo
     echo "--> Created all.list"
@@ -200,6 +204,7 @@ EOT
 
   while true
   do
+    echo
     # everything flat corrected?  then continue, else prompt user
     if [ -e ppp ]
     then
@@ -219,6 +224,8 @@ EOT
 Press
   l to list files not yet corrected
   c to continue and process files in all.list with lmi-rx.py
+  o to reprocess files with imagetyp = object
+  a to reprocess all bias, flat, and object files
   s to skip this step
   q to quit the script
 EOT
@@ -230,6 +237,8 @@ EOT
       echo
       ;;
     "c") lmi-rx.py all.list;;
+    "o") lmi-rx.py all.list --reprocess-data;;
+    "a") lmi-rx.py all.list --reprocess-all;;
     "s") break;;
     "q") exit;;
     esac
@@ -485,12 +494,6 @@ function _standardphot() {
   lmi-standard-phot.py --keep-all $*
 }
 
-function _zeropoints() {
-  [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
-  lmi-standard-calibration.py standard-phot.txt
-  [ -e cal-standard-phot.txt ] && cat cal-standard-phot.txt || echo "Missing standard calibration results!"
-}
-
 function standard_stars() {
   cat<<EOT
 
@@ -519,6 +522,7 @@ Press
   k to measure all sources within the offset tolerances
   t to set the offset tolerances
   e to manually edit standard-phot.txt (e.g., to remove bad data) with $EDITOR
+  z to fit the zerpoints
   s to skip this step
   q to quit the script
 EOT
@@ -530,18 +534,12 @@ EOT
     "b")
       echo "Measure stars"
       _standardphot $opts
-      echo "Derive zero-points"
-      _zeropoints
-      echo "See plots in phot/"
       echo
       echo "Edit bad photometry from standard-phot.txt as needed"
       ;;
     "k")
       echo "Measure stars"
       _standardphot --keep-all $opts
-      echo "Derive zero-points"
-      _zeropoints
-      echo "See plots in phot/"
       echo
       echo "Edit bad photometry from standard-phot.txt as needed"
       ;;
@@ -555,8 +553,12 @@ EOT
     "e")
       [ -e standard-phot.txt ] && cp -f --backup=numbered standard-phot.txt standard-phot.txt && echo "Backed up standard-phot.txt"
       $EDITOR standard-phot.txt
-      echo "Derive zero-points"
-      _zeropoints
+      ;;
+    "z")
+      [ -e cal-standard-phot.txt ] && cp -f --backup=numbered cal-standard-phot.txt cal-standard-phot.txt
+      lmi-standard-calibration.py standard-phot.txt
+      [ -e cal-standard-phot.txt ] && cat cal-standard-phot.txt || echo "Missing standard calibration results!"
+      echo
       echo "See plots in phot/"
       ;;
     "s") break;;
