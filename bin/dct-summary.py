@@ -69,7 +69,7 @@ for f in sorted(filenames):
     row = {"file": f}
     row.update(
         {
-            k: h[k]
+            k: h.get(k, None)
             for k in [
                 "OBSTYPE",
                 "OBJECT",
