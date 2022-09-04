@@ -262,7 +262,12 @@ for f in args.files:
         # estimate seeing
         fwhms = []
         segmap = pu.SegmentationImage(labels)
-        for i in np.random.choice(len(segmap.segments), 50):
+        if len(segmap.segments) > 50:
+            pick = np.random.choice(len(segmap.segments), 50)
+        else:
+            pick = range(len(segmap.segments))
+
+        for i in pick:
             obj = segmap.segments[i].make_cutout(data, masked_array=True)
             try:
                 g = fit_2dgaussian(obj)
@@ -270,9 +275,12 @@ for f in args.files:
                 continue
 
             fwhm = np.mean((g.x_stddev.value, g.y_stddev.value)) * 2.35
-            if fwhm < 1:
+            if fwhm < 1 or not np.isfinite(fwhm):
                 continue
             fwhms.append(fwhm)
+
+        if len(fwhms) == 0:
+            continue
 
         fwhm = sigma_clipped_stats(fwhms)[1]
         rap = fwhm * 2 if np.isfinite(fwhm) else 10
