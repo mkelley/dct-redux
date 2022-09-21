@@ -15,6 +15,7 @@ Most, but not all, of these scripts are being routinely used with good results. 
 * sbpy
 * calviacat
 * mskpy
+* MontagePy (for lmi-stack-comets.py)
 
 For file name normalization and FITS header fixing, just `astropy` is needed.
 
