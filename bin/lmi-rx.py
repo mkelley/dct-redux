@@ -443,7 +443,10 @@ def streak_mask(im):
 
     """
 
-    det = im / nd.grey_opening(im, 31)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        det = im / nd.grey_opening(im, 31)
+
     good = np.isfinite(det)
     det = (det - np.median(det[good])) > (np.std(det[good]) * 2)
     # grow the detection map to merge pixels from faint streaks
