@@ -531,6 +531,7 @@ for style in needed_flat_styles(ic):
 ic.refresh()
 i = (
     (ic.summary["obstype"] != "BIAS")
+    & (ic.summary["obstype"] != "DARK")
     & ic.summary["flatcor"].mask
     & ~ic.summary["subbias"].mask
 )
