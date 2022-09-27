@@ -571,6 +571,81 @@ EOT
   cd ..
 }
 
+function comet_stacks() {
+  cat<<EOT
+
+
+---------------
+7. Comet stacks
+---------------
+EOT
+
+  declare -A dirs
+  for d in `(cd sorted && ls -dv1 *) | tail -n+2`; do
+    # need || echo "" here else this command fails and the script terminates
+    test=`expr match "$d" "^\(\([cp][12]\)\|\([1-9]\)\)" || echo ""`
+    if [ -z "$test" ]
+    then dirs[$d]="-"
+    else dirs[$d]='+'
+    fi
+  done
+
+  declare -A toggle=( ["+"]="-" ["-"]="+" )
+
+  while true
+  do
+    for d in ${!dirs[@]}; do
+      echo ${dirs[$d]} $d
+    done | sort -n -k2
+
+    cat<<EOT
+
+Directories marked with "+" will be processed
+
+Press
+  t to toggle directory processing
+  c to continue and stack the data
+  s to skip this step
+  q to quit the script
+EOT
+
+    read -rsn1 response
+    case "$response" in
+    "t")
+      echo -n "Enter space-separated directory names: "
+      read -r dlist
+      if [ ! -z "$dlist" ]
+      then
+        for d in $dlist
+        do
+          if [ ! -z "${dirs[$d]}" ]
+          then
+
+            dirs[$d]=${toggle[${dirs[$d]}]}
+          else
+            echo
+            echo "Directory $d not found in sorted/"
+          fi
+        done
+      fi
+      echo
+      ;;
+    "c")
+      for d in ${!dirs[@]}
+      do
+        if [ "${dirs[$d]}" = "+" ]
+        then
+          lmi-stack-comets.py sorted/$d/*/*
+        fi
+      done
+      break
+      ;;
+    "s") break;;
+    "q") exit;;
+    esac
+  done
+}
+
 cat<<EOT
 lmi-rx-to-calibration.sh - Reduce and calibrate LMI data.
 
@@ -600,6 +675,7 @@ Press
   8 to skip to "Photometric catalogs"
   9 to skip to "Calibrate catalogs"
   a to skip to "Standard star calibration"
+  b to skip to "Comet stacks"
   c to continue
   q to quit the script
 EOT
@@ -608,7 +684,7 @@ EOT
   "c")
     first_step="0"
     break;;
-  [0-9a]) break;;
+  [0-9ab]) break;;
   "q") exit;;
   esac
 done
@@ -627,3 +703,4 @@ mkdir -p wcs phot
 [[ "0x$first_step" -le "0x8" ]] && photometric_catalogs
 [[ "0x$first_step" -le "0x9" ]] && calibrate_catalogs
 [[ "0x$first_step" -le "0xA" ]] && standard_stars
+[[ "0x$first_step" -le "0xB" ]] && comet_stacks
