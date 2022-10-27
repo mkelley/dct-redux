@@ -121,7 +121,14 @@ for h in headers:
     mjd = [Time(h["DATE-OBS"]).mjd]
     airmass = [h["airmass"]]
     filters = set([h["FILTERS"]])
-    targets[k] = {"target": target, "ra": h["ra"], "dec": h["dec"]}
+    targets[k] = {
+        "target": target,
+        "ra": h["ra"],
+        "dec": h["dec"],
+        "rh": -1,
+        "delta": -1,
+        "phase": -1,
+    }
     last_k = k
 
     try:
@@ -145,25 +152,31 @@ for h in headers:
 rows = sorted(
     list(targets.values()), key=lambda row: natural_sort_key(row["target"])
 )
-tab = Table(rows)[
-    "target",
-    "date",
-    "time",
-    "mjd",
-    "ra",
-    "dec",
-    "airmass",
-    "filters",
-    "rh",
-    "delta",
-    "phase",
-]
+if len(rows) == 0:
+    with open("target-summary.txt", "w") as outf:
+        outf.write("# No targets to summarize.\n")
+else:
+    tab = Table(rows)[
+        "target",
+        "date",
+        "time",
+        "mjd",
+        "ra",
+        "dec",
+        "airmass",
+        "filters",
+        "rh",
+        "delta",
+        "phase",
+    ]
 
-Table(files).write(
-    "file-summary.txt", format="ascii.fixed_width_two_line", overwrite=True
-)
-tab.filled(-999).write(
-    "target-summary.txt", format="ascii.fixed_width_two_line", overwrite=True
-)
-tab.filled(-999).write("target-summary.csv", overwrite=True)
+    Table(files).write(
+        "file-summary.txt", format="ascii.fixed_width_two_line", overwrite=True
+    )
+    tab.filled(-999).write(
+        "target-summary.txt",
+        format="ascii.fixed_width_two_line",
+        overwrite=True,
+    )
+    tab.filled(-999).write("target-summary.csv", overwrite=True)
 os.system("cat target-summary.csv")
