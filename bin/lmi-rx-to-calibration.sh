@@ -19,7 +19,7 @@ EOT
 Press
   t to perform test run
   c to run and commit to changes
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
     read -rsn1 response
@@ -70,7 +70,7 @@ Press
   m to show basic file metadata
   t to test changes in updated file
   c to continue and commit to changes
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
     read -rsn1 response
@@ -176,7 +176,7 @@ EOT
 
 Press
   c to continue and (re)create the summaries
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
     read -rsn1 response
@@ -226,7 +226,7 @@ Press
   c to continue and process files in all.list with lmi-rx.py
   o to reprocess files with imagetyp = object
   a to reprocess all bias, flat, and object files
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
     read -rsn1 response
@@ -272,7 +272,7 @@ Some files unsolved
 Press
   l to list files not yet solved
   c to continue and process files with lmi-solve-wcs.sh
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
     read -rsn1 response
@@ -340,7 +340,7 @@ Directories marked with "+" will be processed
 Press
   t to toggle directory processing
   c to continue and add moving WCSs
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
 
@@ -407,7 +407,7 @@ EOT
 Press
   c to continue and add catalog FITS extensions, if missing
   r to continue, reprocessing images when catalogs are already defined
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
 
@@ -454,7 +454,7 @@ Press
   c to calibrate the catalogs
   e to set extinction calculation options
   z to fit the zeropoints as a function of airmass
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
 
@@ -523,7 +523,7 @@ Press
   t to set the offset tolerances
   e to manually edit standard-phot.txt (e.g., to remove bad data) with $EDITOR
   z to fit the zerpoints
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
 
@@ -605,7 +605,7 @@ Directories marked with "+" will be processed
 Press
   t to toggle directory processing
   c to continue and stack the data
-  s to skip this step
+  s to skip to the next step
   q to quit the script
 EOT
 

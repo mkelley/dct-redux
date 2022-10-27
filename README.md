@@ -1,4 +1,4 @@
-# dct-redux v0.7.2
+# dct-redux v0.8.0
 Python scripts for reducing Lowell Discovery Telescope (formerly Discovery Channel Telescope) data, mostly focused on observations of comets.
 
 ## Status
