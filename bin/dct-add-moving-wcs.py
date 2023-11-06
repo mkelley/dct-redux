@@ -6,7 +6,6 @@ import warnings
 import numpy as np
 from astropy.wcs import WCS, FITSFixedWarning
 from astropy.io import fits
-from astroquery.simbad import Simbad
 import astropy.coordinates as coords
 from astropy.coordinates import SkyCoord
 from astropy.table import vstack
@@ -17,11 +16,17 @@ from sbpy.data import Ephem
 import mskpy
 
 comet_pat = (
-    "^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)"
-    "|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?))"
+    "^("
+    "([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)"
+    "|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?)"
+    ")"
 )
-aster_pat = (
-    "^(([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)" "|(\(([1-9][0-9]*)\)))"
+asteroid_pat = (
+    "^("
+    "([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)"
+    "|(\(([1-9][0-9]*)\))"
+    "|(A/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?)"
+    ")"
 )
 
 ######################################################################
@@ -60,8 +65,8 @@ t = t[np.argsort(t)]
 
 obj = obj[0]
 comet_match = re.findall(comet_pat, obj)
-aster_match = re.findall(aster_pat, obj)
-m = comet_match + aster_match
+asteroid_match = re.findall(asteroid_pat, obj)
+m = comet_match + asteroid_match
 if len(m) == 0:
     raise ValueError(
         "Designation is not that of a comet or asteroid: {}".format(obj)

@@ -318,7 +318,7 @@ EOT
   declare -A dirs
   for d in `(cd sorted && ls -dv1 *) | tail -n+2`; do
     # need || echo "" here else this command fails and the script terminates
-    test=`expr match "$d" "^\(\([cp][12]\)\|\([1-9]\)\)" || echo ""`
+    test=`expr match "$d" "^\(\([acp][12]\)\|\([1-9]\)\)" || echo ""`
     if [ -z "$test" ]
     then dirs[$d]="-"
     else dirs[$d]='+'

@@ -10,10 +10,25 @@ from datetime import datetime
 
 class Config:
     file_template = "lmi_[0-9]{8}_[0-9]{4}_ppp.fits"
+    # comet_pat = (
+    #     "([0-9]*[CPDX])(-[A-Z]+)?/(([12][0-9]{3} [A-Z]+[0-9]+) \((.*)\)|(.*))"
+    # )
+    # asteroid_pat = ("((\(([0-9]+)\) (.*))|([12][0-9]{3} [A-Za-z]+[0-9]+))"
+    #                 "|(A/(([12][0-9]{3} [A-Z]+[0-9]+)))")
+
     comet_pat = (
-        "([0-9]*[CPDX])(-[A-Z]+)?/(([12][0-9]{3} [A-Z]+[0-9]+) \((.*)\)|(.*))"
+        "^("
+        "([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)"
+        "|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?)"
+        ")"
     )
-    asteroid_pat = "(\(([0-9]+)\) (.*))|([12][0-9]{3} [A-Za-z]+[0-9]+)"
+    asteroid_pat = (
+        "^("
+        "([1-9][0-9]*( [A-Z]{1,2}([1-9][0-9]{0,2})?)?)"
+        "|(\(([1-9][0-9]*)\))"
+        "|(A/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?)"
+        ")"
+    )
 
 
 def file_filter(source):
@@ -79,11 +94,18 @@ def object2field(obj):
         else:
             field = field.replace("/", "")
     elif re.match(Config.asteroid_pat, row["object"]) is not None:
-        m = re.findall(Config.asteroid_pat, row["object"])[0]
-        if len(m[0]) == 0:
-            field = m[3].replace(" ", "")
+        m = re.findall(Config.asteroid_pat, row["object"].strip())[0]
+        if len(m[1]) > 0:
+            # 2001 XY123 -> 2001_XY123
+            field = m[1].strip().replace(" ", "_")
+        elif len(m[5]) > 0:
+            # (1) Ceres -> 1
+            field = m[5]
+        elif len(m[6]) > 0:
+            # A/...
+            field = m[6].lower().replace(" ", "").replace("/", "")
         else:
-            field = m[2].lower().replace(" ", "")
+            field = m[0].lower().replace(" ", "").replace("/", "")
     else:
         field = row["object"].lower().replace(" ", "").replace("/", "_")
         m = re.findall("\(\s*[^)]+\)", field)

@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(
     name="dct-redux",
-    version="0.8.2",
+    version="0.8.3",
     description="DCT/LMI reduction and analysis scripts.",
     author="Michael S. P. Kelley",
     author_email="msk@astro.umd.edu",
