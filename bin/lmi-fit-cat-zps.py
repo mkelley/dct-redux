@@ -99,6 +99,7 @@ for f in files:
             "date": h["DATE-OBS"],
             "filter": filt,
             "airmass": airmass,
+            "exptime": h["exptime"],
             "catalog filter": ch["calfilt"],
             "catalog color": ch["color"],
             "n sources": ch.get("nsrcs", -1),

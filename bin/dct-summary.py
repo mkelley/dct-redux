@@ -48,7 +48,7 @@ def get_ephemeris(target):
     if t is None:
         raise ValueError
 
-    return Ephem.from_horizons(t, **opts)
+    return Ephem.from_horizons(t, location="G37", **opts)
 
 
 # summarize files and save all headers

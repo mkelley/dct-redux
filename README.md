@@ -1,4 +1,4 @@
-# dct-redux v0.8.0
+# dct-redux v0.8.1
 Python scripts for reducing Lowell Discovery Telescope (formerly Discovery Channel Telescope) data, mostly focused on observations of comets.
 
 ## Status
@@ -12,7 +12,7 @@ Most, but not all, of these scripts are being routinely used with good results. 
 * DS9
 * pyds9
 * astroquery
-* sbpy
+* sbpy >= 0.4
 * calviacat
 * mskpy
 * MontagePy (for lmi-stack-comets.py)
