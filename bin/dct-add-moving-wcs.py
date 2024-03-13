@@ -9,9 +9,6 @@ from astropy.io import fits
 import astropy.coordinates as coords
 from astropy.coordinates import SkyCoord
 from astropy.table import vstack
-import astropy.units as u
-
-# from astroquery.jplhorizons import Horizons
 from sbpy.data import Ephem
 import mskpy
 
@@ -34,9 +31,7 @@ asteroid_pat = (
 warnings.simplefilter("ignore", FITSFixedWarning)
 ######################################################################
 
-parser = argparse.ArgumentParser(
-    description="Add a WCS centered on a moving target."
-)
+parser = argparse.ArgumentParser(description="Add a WCS centered on a moving target.")
 parser.add_argument("files", nargs="+", help="FITS images to update.")
 parser.add_argument(
     "--observatory", default="G37", help="Observatory location (for HORIZONS)."
@@ -68,19 +63,23 @@ comet_match = re.findall(comet_pat, obj)
 asteroid_match = re.findall(asteroid_pat, obj)
 m = comet_match + asteroid_match
 if len(m) == 0:
-    raise ValueError(
-        "Designation is not that of a comet or asteroid: {}".format(obj)
-    )
+    raise ValueError("Designation is not that of a comet or asteroid: {}".format(obj))
 target = m[0][0]
+
+if target.startswith("("):
+    # strip asteroid parentheses from, e.g., (3552)
+    target = target.strip("(").strip(")")
 
 c = []
 print(obj)
 
+if len(args.files) <= 1:
+    print("Two or more images are required.")
+    exit()
+
 if args.source == "jpl":
     if comet_match:
-        opts = dict(
-            closest_apparition=True, no_fragments=True, id_type="designation"
-        )
+        opts = dict(closest_apparition=True, no_fragments=True, id_type="designation")
     else:
         opts = {}
 
