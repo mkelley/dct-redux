@@ -471,7 +471,7 @@ EOT
       lmi-calibrate-catalog.py ../ppp/lmi*fits --plot --fetch=$FETCH
       ;;
     "e")
-      echo "Options to pass to lmi-fit-cat-zps.py, e.g., --nrange or --arange:"
+      echo "Options to pass to lmi-fit-cat-zps.py, e.g., --nrange, --arange, or --ignore:"
       read -r ZPOPTS
       ;;
     "z")
