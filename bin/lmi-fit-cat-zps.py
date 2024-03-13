@@ -46,8 +46,7 @@ parser.add_argument(
     "-i",
     type=int_list,
     default=[],
-    action="append",
-    help="file number to ignore, may be repeated",
+    help="comma-separated file numbers to ignore",
 )
 args = parser.parse_args()
 
@@ -70,6 +69,8 @@ if len(logger.handlers) == 0:
 
 logger.info("#" * 70)
 logger.info(datetime.now().isoformat())
+logger.info("Command-line options: %s", " ".join(sys.argv[1:]))
+logger.debug("Ignore list: %s", str(args.ignore))
 
 files = sorted(glob(f"{args.path}/lmi*fits"))
 if len(files) == 0:
@@ -125,13 +126,15 @@ summary.write(
 )
 filters = set(summary["filter"])
 
+analyze = summary[~summary["ignore"]]
+
 plt.clf()
 for filt in filters:
-    i = summary["filter"] == filt
+    i = analyze["filter"] == filt
     plt.errorbar(
-        summary["airmass"][i],
-        summary["magzp"][i],
-        summary["mzpunc"][i],
+        analyze["airmass"][i],
+        analyze["magzp"][i],
+        analyze["mzpunc"][i],
         ls="none",
         marker="o",
         alpha=0.5,
@@ -167,14 +170,13 @@ fitter = fitting.FittingWithOutlierRemoval(
 )
 extinction = []
 for filt in filters:
-    for (start, stop) in args.nrange:
-        _start = min(summary["number"]) if start is None else start
-        _stop = max(summary["number"]) if stop is None else stop
+    for start, stop in args.nrange:
+        _start = min(analyze["number"]) if start is None else start
+        _stop = max(analyze["number"]) if stop is None else stop
         i = (
-            (summary["number"] >= _start)
-            * (summary["number"] <= _stop)
-            * (summary["filter"] == filt)
-            * ~summary["ignore"]
+            (analyze["number"] >= _start)
+            * (analyze["number"] <= _stop)
+            * (analyze["filter"] == filt)
         )
         if not any(i):
             continue
@@ -186,17 +188,16 @@ for filt in filters:
             "airmass stop": None,
             "filter": filt,
         }
-        result = fit_and_plot(summary[i])
+        result = fit_and_plot(analyze[i])
         row.update(result)
         extinction.append(row)
 
 for filt in filters:
-    for (start, stop) in args.arange:
+    for start, stop in args.arange:
         i = (
-            (summary["airmass"] >= start)
-            * (summary["airmass"] <= stop)
-            * (summary["filter"] == filt)
-            * ~summary["ignore"]
+            (analyze["airmass"] >= start)
+            * (analyze["airmass"] <= stop)
+            * (analyze["filter"] == filt)
         )
         if not any(i):
             continue
@@ -208,7 +209,7 @@ for filt in filters:
             "airmass stop": stop,
             "filter": filt,
         }
-        result = fit_and_plot(summary[i])
+        result = fit_and_plot(analyze[i])
         row.update(result)
         extinction.append(row)
 
