@@ -26,9 +26,7 @@ import sep
 parser = argparse.ArgumentParser()
 parser.add_argument("files", nargs="*", help="files to process")
 parser.add_argument("--reprocess", action="store_true")
-parser.add_argument(
-    "--verbose", "-v", action="store_true", help="verbose logging"
-)
+parser.add_argument("--verbose", "-v", action="store_true", help="verbose logging")
 args = parser.parse_args()
 
 ######################################################################
@@ -78,9 +76,7 @@ class GaussianConst2D(Fittable2DModel):
     theta = Parameter(default=0)
 
     @staticmethod
-    def evaluate(
-        x, y, constant, amplitude, x_mean, y_mean, x_stddev, y_stddev, theta
-    ):
+    def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev, y_stddev, theta):
         """Two dimensional Gaussian plus constant function."""
 
         model = Const2D(constant)(x, y) + Gaussian2D(
@@ -134,7 +130,7 @@ def fit_2dgaussian(data):
     )
     fitter = LevMarLSQFitter()
     y, x = np.indices(data.shape)
-    with astropy.log.log_to_list() as log_list:
+    with astropy.log.log_to_list():
         gfit = fitter(g_init, x, y, data)
 
     return gfit
@@ -210,9 +206,7 @@ for f in args.files:
         h = hdu[0].header
 
         if h["IMAGETYP"].upper() != "OBJECT":
-            logger.warning(
-                f'Refusing to measure {f} with image type {h["imagetyp"]}.'
-            )
+            logger.warning(f'Refusing to measure {f} with image type {h["imagetyp"]}.')
             continue
 
         if "MASK" in hdu:
@@ -271,7 +265,7 @@ for f in args.files:
             obj = segmap.segments[i].make_cutout(data, masked_array=True)
             try:
                 g = fit_2dgaussian(obj)
-            except:
+            except ValueError:
                 continue
 
             fwhm = np.mean((g.x_stddev.value, g.y_stddev.value)) * 2.35
@@ -304,6 +298,7 @@ for f in args.files:
             6.0,
         )
         kronrad[krflag > 0] = 0  # ignore any flagged data
+        kronrad[~np.isfinite(kronrad)] = 0  # filter out NaNs
 
         krflux, krfluxerr, _flag = sep.sum_ellipse(
             data,
