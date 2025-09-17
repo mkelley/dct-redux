@@ -201,11 +201,11 @@ for f in sorted(args.files):
     with fits.open(f, mode="readonly") as hdu:
         h = hdu[0].header
         if h["OBSTYPE"] != "OBJECT":
-            logger.info(f + ": wrong OBSTYPE")
+            logger.info("%s: wrong OBSTYPE", f)
             continue
 
         if "CAT" not in hdu:
-            logger.info(f + ": missing photometry catalog")
+            logger.info("%s: missing photometry catalog", f)
             continue
 
         date = h["DATE-OBS"].replace("T", " ")
@@ -215,7 +215,15 @@ for f in sorted(args.files):
         exptime = h["exptime"]
 
         phot = Table(hdu["CAT"].data)
+        if len(phot) == 0:
+            logger.info("%s: empty photometry catalog")
+            continue
+
         phot = phot[phot["krflux"] > 0]  # clean out bad data
+        if len(phot) == 0:
+            logger.info("%s: no good photometry", f)
+            continue
+
         w = WCS(hdu[0])
         x = phot["x"]
         y = phot["y"]
