@@ -7,6 +7,7 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.table import Table
 from sbpy.data import Names, Ephem, natural_sort_key
+from sbpy.data.names import TargetNameParseError
 
 parser = argparse.ArgumentParser()
 parser.add_argument("files", nargs="+")
@@ -32,7 +33,14 @@ def read_list(fn):
 
 
 def get_ephemeris(target):
-    objtype = Names.asteroid_or_comet(target)
+    try:
+        objtype = Names.asteroid_or_comet(target)
+    except TargetNameParseError:
+        if "I/" in target:
+            objtype = "iso"
+        else:
+            objtype = "unkonwn"
+
     opts = dict(epochs=Time(h["DATE-OBS"]), id_type="designation")
     if objtype == "comet":
         parsed = Names.parse_comet(target)
@@ -40,6 +48,9 @@ def get_ephemeris(target):
         if "desig" in parsed:
             t += "/" + parsed["desig"]
 
+        opts.update(dict(no_fragments=True, closest_apparition=True))
+    elif objtype == "iso":
+        t = target[:target.index("I/") + 1]
         opts.update(dict(no_fragments=True, closest_apparition=True))
     else:
         parsed = Names.parse_asteroid(target)
