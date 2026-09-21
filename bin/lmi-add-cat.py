@@ -20,6 +20,7 @@ from astropy.wcs import WCS
 from astropy.table import Table
 from astropy.wcs import FITSFixedWarning
 import photutils as pu
+from photutils.segmentation import SegmentationImage
 import sep
 
 
@@ -255,7 +256,7 @@ for f in args.files:
 
         # estimate seeing
         fwhms = []
-        segmap = pu.SegmentationImage(labels)
+        segmap = SegmentationImage(labels)
         if len(segmap.segments) > 50:
             pick = np.random.choice(len(segmap.segments), 50)
         else:
